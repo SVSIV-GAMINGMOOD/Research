@@ -4,6 +4,7 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+from shared.experiment_settings import EVALUATION_SETTINGS
 from shared.model_workflows import MODELS_DIR, RESULTS_DIR, evaluate_onnx_model, load_sst2_validation_dataset
 
 
@@ -20,7 +21,10 @@ ONNX_FILES = {
 
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    dataset = load_sst2_validation_dataset(format_type="numpy", max_samples=872)
+    dataset = load_sst2_validation_dataset(
+        format_type="numpy",
+        max_samples=EVALUATION_SETTINGS["max_samples"],
+    )
     all_results = {}
 
     for method, model_path in ONNX_FILES.items():
@@ -32,7 +36,13 @@ def main() -> None:
             all_results[method] = None
             continue
 
-        metrics = evaluate_onnx_model(model_path, dataset, latency_runs=100, threads=4)
+        metrics = evaluate_onnx_model(
+            model_path,
+            dataset,
+            batch_size=EVALUATION_SETTINGS["batch_size"],
+            latency_runs=EVALUATION_SETTINGS["latency_runs"],
+            threads=EVALUATION_SETTINGS["threads"],
+        )
         all_results[method] = {
             "accuracy": round(metrics["accuracy"], 4),
             "f1": round(metrics["f1"], 4),

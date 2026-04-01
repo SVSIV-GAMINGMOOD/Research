@@ -1,0 +1,54 @@
+{
+  "model": {
+    "name": "distilbert-base-uncased",
+    "num_labels": 2
+  },
+  "dataset": {
+    "name": "glue",
+    "config": "sst2",
+    "evaluation_split": "validation",
+    "max_length": 128,
+    "default_max_samples": null
+  },
+  "quantization": {
+    "bit_options": [4, 6, 8],
+    "default_bits": 32,
+    "embedding_bits": 8
+  },
+  "sensitivity": {
+    "bit_simulation": 4,
+    "lock_threshold": 0.01,
+    "fallback_locked_layers": [
+      "distilbert.transformer.layer.1.ffn.lin2",
+      "distilbert.transformer.layer.2.ffn.lin2",
+      "distilbert.transformer.layer.2.ffn.lin1",
+      "distilbert.transformer.layer.1.ffn.lin1"
+    ],
+    "results_file": "sensitivity_results.json"
+  },
+  "search": {
+    "alpha": 5.0,
+    "beta": 2.0,
+    "gamma": 1.0,
+    "initial_temperature": 1.0,
+    "final_temperature": 0.05,
+    "cooling_rate": 0.9,
+    "iterations_per_temp": 3,
+    "early_stop_patience": 8,
+    "plateau_eps": 0.001,
+    "num_runs": 3,
+    "baseline_size_mb_fallback": 255.55,
+    "baseline_latency_ms_fallback": 14.67,
+    "results_file": "sa_search_results.json",
+    "best_config_file": "sa_best_config.json"
+  },
+  "greedy": {
+    "allocation_strategy": "tertiles"
+  },
+  "evaluation": {
+    "batch_size": 32,
+    "latency_runs": 100,
+    "threads": 4,
+    "max_samples": null
+  }
+}

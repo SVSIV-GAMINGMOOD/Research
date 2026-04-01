@@ -1,6 +1,11 @@
 import torch
 from pathlib import Path
 from transformers import DistilBertForSequenceClassification
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 
@@ -8,8 +13,8 @@ MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 # Load Full Fine-Tuned Model
 # =========================
 model = DistilBertForSequenceClassification.from_pretrained(
-    "distilbert-base-uncased",
-    num_labels=2
+    DEFAULT_MODEL_NAME,
+    num_labels=DEFAULT_NUM_LABELS
 )
 model.load_state_dict(torch.load(MODELS_DIR / "baseline_best.pt", map_location="cpu"))
 model.eval()

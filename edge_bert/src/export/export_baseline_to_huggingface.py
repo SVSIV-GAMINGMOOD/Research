@@ -1,15 +1,20 @@
 import torch
 from pathlib import Path
 from transformers import DistilBertForSequenceClassification, AutoTokenizer
+import sys
 
-MODEL_NAME = "distilbert-base-uncased"
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS
+
+MODEL_NAME = DEFAULT_MODEL_NAME
 SRC_ROOT = Path(__file__).resolve().parents[1]
 MODELS_DIR = SRC_ROOT / "models"
 BASELINE_PATH = MODELS_DIR / "baseline_best.pt"
 
 print("Loading model and tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+model = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=DEFAULT_NUM_LABELS)
 
 # Load your custom trained weights
 state = torch.load(BASELINE_PATH, map_location="cpu")

@@ -1,254 +1,132 @@
-"""
-=============================================================
-STAGE 6B — Effective Size Comparison (ALL Models)
-=============================================================
-Uses BOTH:
-  1. Actual ONNX file sizes  (os.path.getsize)
-  2. Theoretical effective bit-count sizes
-
-Models covered:
-  baseline_fp32.onnx
-  baseline_int8.onnx
-  frozen_fp32.onnx
-  frozen_int8.onnx
-  greedy_quant_model.onnx
-  mixed_precision_real_quant.onnx   ← SA v1
-  hybrid_quant_model.onnx           ← SA + INT8 embeddings (Ours)
-
-Run:
-  python step3_size_comparison.py
-Output:
-  results/size_comparison.json
-  results/size_comparison.txt
-=============================================================
-"""
-
-import os
 import json
-import torch
+import os
 from pathlib import Path
+import sys
+
+import torch
 from transformers import DistilBertForSequenceClassification
 
-# ----------------------------------------------------------
-# PATHS — adjust if your models/ folder is elsewhere
-# ----------------------------------------------------------
-SRC_ROOT    = Path(__file__).resolve().parents[1]
-MODELS_DIR  = SRC_ROOT / "models"
-RESULTS_DIR = SRC_ROOT / "results"
-MODEL_NAME  = "distilbert-base-uncased"
-os.makedirs(RESULTS_DIR, exist_ok=True)
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from shared.experiment_settings import (
+    DEFAULT_BITS,
+    DEFAULT_EMBEDDING_BITS,
+    DEFAULT_MODEL_NAME,
+    DEFAULT_NUM_LABELS,
+    MODELS_DIR,
+    RESULTS_DIR,
+    get_locked_layers,
+    load_greedy_config,
+    load_sa_best_config,
+)
+
 
 ONNX_FILES = {
-    "FP32 Baseline":        "baseline_fp32.onnx",
-    "INT8 Uniform":         "baseline_int8.onnx",
-    "FAR Frozen FP32":      "frozen_fp32.onnx",
-    "FAR Frozen INT8":      "frozen_int8.onnx",
-    "Greedy Mixed":         "greedy_quant_model.onnx",
-    "SA Mixed (v1)":        "mixed_precision_real_quant.onnx",
-    "Hybrid INT8+SA (Ours)":"hybrid_quant_model.onnx",
+    "FP32 Baseline": "baseline_fp32.onnx",
+    "INT8 Uniform": "baseline_int8.onnx",
+    "FAR Frozen FP32": "frozen_fp32.onnx",
+    "FAR Frozen INT8": "frozen_int8.onnx",
+    "Greedy Mixed": "greedy_quant_model.onnx",
+    "SA Mixed (v1)": "mixed_precision_real_quant.onnx",
+    "Hybrid INT8+SA (Ours)": "hybrid_quant_model.onnx",
 }
 
-# ----------------------------------------------------------
-# SA CONFIGURATION (from your Stage 4/6 search)
-# ----------------------------------------------------------
-SA_CONFIG = {
-    "distilbert.transformer.layer.0.attention.q_lin":   8,
-    "distilbert.transformer.layer.0.attention.k_lin":   6,
-    "distilbert.transformer.layer.0.attention.v_lin":   4,
-    "distilbert.transformer.layer.0.attention.out_lin": 8,
-    "distilbert.transformer.layer.0.ffn.lin1":          4,
-    "distilbert.transformer.layer.0.ffn.lin2":          6,
-    "distilbert.transformer.layer.1.attention.q_lin":   6,
-    "distilbert.transformer.layer.1.attention.k_lin":   4,
-    "distilbert.transformer.layer.1.attention.v_lin":   4,
-    "distilbert.transformer.layer.1.attention.out_lin": 6,
-    "distilbert.transformer.layer.2.attention.q_lin":   4,
-    "distilbert.transformer.layer.2.attention.k_lin":   6,
-    "distilbert.transformer.layer.2.attention.v_lin":   4,
-    "distilbert.transformer.layer.2.attention.out_lin": 6,
-    "distilbert.transformer.layer.3.attention.q_lin":   8,
-    "distilbert.transformer.layer.3.attention.k_lin":   6,
-    "distilbert.transformer.layer.3.attention.v_lin":   4,
-    "distilbert.transformer.layer.3.attention.out_lin": 8,
-    "distilbert.transformer.layer.3.ffn.lin1":          8,
-    "distilbert.transformer.layer.3.ffn.lin2":          6,
-    "distilbert.transformer.layer.4.attention.q_lin":   8,
-    "distilbert.transformer.layer.4.attention.k_lin":   8,
-    "distilbert.transformer.layer.4.attention.v_lin":   8,
-    "distilbert.transformer.layer.4.attention.out_lin": 4,
-    "distilbert.transformer.layer.4.ffn.lin1":          4,
-    "distilbert.transformer.layer.4.ffn.lin2":          6,
-    "distilbert.transformer.layer.5.attention.q_lin":   4,
-    "distilbert.transformer.layer.5.attention.k_lin":   4,
-    "distilbert.transformer.layer.5.attention.v_lin":   8,
-    "distilbert.transformer.layer.5.attention.out_lin": 6,
-    "distilbert.transformer.layer.5.ffn.lin1":          6,
-    "distilbert.transformer.layer.5.ffn.lin2":          4,
-    "pre_classifier": 4,
-    "classifier":     8,
-}
-GREEDY_CONFIG = {
-    "distilbert.transformer.layer.0.ffn.lin2":          8,
-    "distilbert.transformer.layer.3.ffn.lin2":          8,
-    "distilbert.transformer.layer.3.attention.out_lin": 8,
-    "distilbert.transformer.layer.3.ffn.lin1":          8,
-    "distilbert.transformer.layer.4.ffn.lin2":          8,
-    "distilbert.transformer.layer.5.attention.q_lin":   8,
-    "distilbert.transformer.layer.1.attention.k_lin":   8,
-    "distilbert.transformer.layer.1.attention.v_lin":   8,
-    "distilbert.transformer.layer.4.attention.k_lin":   8,
-    "distilbert.transformer.layer.4.attention.v_lin":   8,
-    "distilbert.transformer.layer.5.ffn.lin2":          8,
-    "pre_classifier":                                   6,
-    "distilbert.transformer.layer.0.attention.v_lin":   6,
-    "distilbert.transformer.layer.3.attention.q_lin":   6,
-    "distilbert.transformer.layer.4.attention.out_lin": 6,
-    "distilbert.transformer.layer.4.ffn.lin1":          6,
-    "classifier":                                       6,
-    "distilbert.transformer.layer.0.attention.k_lin":   6,
-    "distilbert.transformer.layer.0.attention.out_lin": 6,
-    "distilbert.transformer.layer.2.attention.k_lin":   6,
-    "distilbert.transformer.layer.3.attention.v_lin":   6,
-    "distilbert.transformer.layer.5.attention.k_lin":   6,
-    "distilbert.transformer.layer.5.attention.out_lin": 4,
-    "distilbert.transformer.layer.0.attention.q_lin":   4,
-    "distilbert.transformer.layer.1.attention.out_lin": 4,
-    "distilbert.transformer.layer.2.attention.q_lin":   4,
-    "distilbert.transformer.layer.2.attention.out_lin": 4,
-    "distilbert.transformer.layer.4.attention.q_lin":   4,
-    "distilbert.transformer.layer.5.attention.v_lin":   4,
-    "distilbert.transformer.layer.5.ffn.lin1":          4,
-    "distilbert.transformer.layer.1.attention.q_lin":   4,
-    "distilbert.transformer.layer.3.attention.k_lin":   4,
-    "distilbert.transformer.layer.0.ffn.lin1":          4,
-    "distilbert.transformer.layer.2.attention.v_lin":   4,
-    "distilbert.transformer.layer.1.ffn.lin1":          8,
-    "distilbert.transformer.layer.2.ffn.lin2":          8,
-    "distilbert.transformer.layer.2.ffn.lin1":          8,
-    "distilbert.transformer.layer.1.ffn.lin2":          8,
-}
-LOCKED_LAYERS = {
-    "distilbert.transformer.layer.1.ffn.lin2",
-    "distilbert.transformer.layer.2.ffn.lin2",
-    "distilbert.transformer.layer.2.ffn.lin1",
-    "distilbert.transformer.layer.1.ffn.lin1",
-}
-for l in LOCKED_LAYERS:
-    SA_CONFIG[l] = 8
+SA_CONFIG = load_sa_best_config()
+GREEDY_CONFIG = load_greedy_config()
+LOCKED_LAYERS = set(get_locked_layers())
+for layer in LOCKED_LAYERS:
+    SA_CONFIG[layer] = 8
 
-# ----------------------------------------------------------
-# THEORETICAL BIT-COUNT SIZE
-# ----------------------------------------------------------
-def is_embedding_param(name):
+
+def is_embedding_param(name: str) -> bool:
     return "embeddings" in name and "LayerNorm" not in name
 
-def get_linear_name(param_name):
+
+def get_linear_name(param_name: str) -> str:
     return param_name.replace(".weight", "").replace(".bias", "")
 
-def compute_theoretical_size(model, linear_config=None,
-                              embed_bits=32, default_bits=32):
+
+def compute_theoretical_size(model, linear_config=None, embed_bits=DEFAULT_BITS, default_bits=DEFAULT_BITS):
     total_bits, total_params = 0, 0
-    for pname, param in model.named_parameters():
-        n     = param.numel()
-        lname = get_linear_name(pname)
-        total_params += n
-        if is_embedding_param(pname):
-            total_bits += n * embed_bits
-        elif linear_config and lname in linear_config:
-            total_bits += n * linear_config[lname]
+    for param_name, param in model.named_parameters():
+        params = param.numel()
+        layer_name = get_linear_name(param_name)
+        total_params += params
+        if is_embedding_param(param_name):
+            total_bits += params * embed_bits
+        elif linear_config and layer_name in linear_config:
+            total_bits += params * linear_config[layer_name]
         else:
-            total_bits += n * default_bits
+            total_bits += params * default_bits
     return {
         "theoretical_mb": round(total_bits / 8 / 1024 / 1024, 2),
-        "eff_bits":        round(total_bits / total_params, 2),
-        "total_params":    total_params,
+        "eff_bits": round(total_bits / total_params, 2),
+        "total_params": total_params,
     }
 
-# Theoretical configs per method
-THEORETICAL_CONFIGS = {
-    "FP32 Baseline":         dict(default_bits=32),
-    "INT8 Uniform":          dict(default_bits=8),
-    "FAR Frozen FP32":       dict(default_bits=32),   # same params, just some frozen
-    "FAR Frozen INT8":       dict(default_bits=8),
-    "Greedy Mixed":          dict(linear_config=GREEDY_CONFIG),
-    "SA Mixed (v1)":         dict(linear_config=SA_CONFIG),
-    "Hybrid INT8+SA (Ours)": dict(linear_config=SA_CONFIG, embed_bits=8),
-}
 
-# ----------------------------------------------------------
-# LOAD MODEL FOR THEORETICAL CALC
-# ----------------------------------------------------------
-print("Loading DistilBERT parameter map...")
-model = DistilBertForSequenceClassification.from_pretrained(
-    MODEL_NAME, num_labels=2
-)
-model.eval()
-total_params = sum(p.numel() for p in model.parameters())
-print(f"  Total parameters: {total_params:,}\n")
-
-fp32_theoretical = compute_theoretical_size(model)["theoretical_mb"]
-
-# ----------------------------------------------------------
-# COLLECT ALL RESULTS
-# ----------------------------------------------------------
-results = {}
-
-print("=" * 72)
-print(f"  {'Method':<28} {'ONNX File':>12} {'Theoretical':>13} {'Eff.Bits':>10} {'Ratio':>8}")
-print("  " + "-" * 70)
-
-for method, fname in ONNX_FILES.items():
-    fpath = MODELS_DIR / fname
-
-    # ONNX actual file size
-    if os.path.exists(fpath):
-        onnx_mb = os.path.getsize(fpath) / 1024 / 1024
-    else:
-        onnx_mb = None
-        print(f"  ⚠  NOT FOUND: {fpath}")
-
-    # Theoretical size
-    cfg  = THEORETICAL_CONFIGS.get(method, {})
-    theo = compute_theoretical_size(model, **cfg)
-
-    ratio = fp32_theoretical / theo["theoretical_mb"]
-
-    results[method] = {
-        "onnx_file":      fname,
-        "onnx_mb":        round(onnx_mb, 2) if onnx_mb else None,
-        "theoretical_mb": theo["theoretical_mb"],
-        "eff_bits":        theo["eff_bits"],
-        "total_params":    theo["total_params"],
-        "compression_ratio": round(ratio, 2),
+def main() -> None:
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    theoretical_configs = {
+        "FP32 Baseline": dict(default_bits=32),
+        "INT8 Uniform": dict(default_bits=8),
+        "FAR Frozen FP32": dict(default_bits=32),
+        "FAR Frozen INT8": dict(default_bits=8),
+        "Greedy Mixed": dict(linear_config=GREEDY_CONFIG),
+        "SA Mixed (v1)": dict(linear_config=SA_CONFIG),
+        "Hybrid INT8+SA (Ours)": dict(linear_config=SA_CONFIG, embed_bits=DEFAULT_EMBEDDING_BITS),
     }
 
-    onnx_s = f"{onnx_mb:.2f} MB" if onnx_mb else "  N/A  "
-    print(f"  {method:<28} {onnx_s:>12} "
-          f"{theo['theoretical_mb']:>10.2f} MB "
-          f"{theo['eff_bits']:>9.2f}b "
-          f"{ratio:>7.2f}×")
+    model = DistilBertForSequenceClassification.from_pretrained(
+        DEFAULT_MODEL_NAME,
+        num_labels=DEFAULT_NUM_LABELS,
+    )
+    model.eval()
+    fp32_theoretical = compute_theoretical_size(model)["theoretical_mb"]
 
-print("=" * 72)
-print(f"\n  Note: ONNX file size includes graph metadata overhead.")
-print(f"  Theoretical size = pure weight storage (used in paper).")
+    results = {}
+    print("=" * 72)
+    print(f"  {'Method':<28} {'ONNX File':>12} {'Theoretical':>13} {'Eff.Bits':>10} {'Ratio':>8}")
+    print("  " + "-" * 70)
 
-# ----------------------------------------------------------
-# SAVE
-# ----------------------------------------------------------
-json_path = RESULTS_DIR / "size_comparison.json"
-with open(json_path, "w") as f:
-    json.dump(results, f, indent=2)
+    for method, file_name in ONNX_FILES.items():
+        model_path = MODELS_DIR / file_name
+        onnx_mb = os.path.getsize(model_path) / 1024 / 1024 if model_path.exists() else None
+        theoretical = compute_theoretical_size(model, **theoretical_configs.get(method, {}))
+        ratio = fp32_theoretical / theoretical["theoretical_mb"]
+        results[method] = {
+            "onnx_file": file_name,
+            "onnx_mb": round(onnx_mb, 2) if onnx_mb is not None else None,
+            "theoretical_mb": theoretical["theoretical_mb"],
+            "eff_bits": theoretical["eff_bits"],
+            "total_params": theoretical["total_params"],
+            "compression_ratio": round(ratio, 2),
+        }
+        onnx_str = f"{onnx_mb:.2f} MB" if onnx_mb is not None else "  N/A  "
+        print(
+            f"  {method:<28} {onnx_str:>12} "
+            f"{theoretical['theoretical_mb']:>10.2f} MB "
+            f"{theoretical['eff_bits']:>9.2f}b "
+            f"{ratio:>7.2f}x"
+        )
 
-txt_path = RESULTS_DIR / "size_comparison.txt"
-with open(txt_path, "w") as f:
-    f.write(f"{'Method':<28} {'ONNX MB':>10} {'Theory MB':>11} {'Eff Bits':>10} {'Ratio':>8}\n")
-    f.write("-" * 70 + "\n")
-    for method, r in results.items():
-        onnx_s = f"{r['onnx_mb']:.2f}" if r["onnx_mb"] else "N/A"
-        f.write(f"{method:<28} {onnx_s:>10} "
-                f"{r['theoretical_mb']:>10.2f} "
-                f"{r['eff_bits']:>10.2f} "
-                f"{r['compression_ratio']:>8.2f}×\n")
+    json_path = RESULTS_DIR / "size_comparison.json"
+    json_path.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
 
-print(f"\n  Saved: {json_path}")
-print(f"  Saved: {txt_path}")
+    txt_path = RESULTS_DIR / "size_comparison.txt"
+    with open(txt_path, "w", encoding="utf-8") as file:
+        file.write(f"{'Method':<28} {'ONNX MB':>10} {'Theory MB':>11} {'Eff Bits':>10} {'Ratio':>8}\n")
+        file.write("-" * 70 + "\n")
+        for method, result in results.items():
+            onnx_str = f"{result['onnx_mb']:.2f}" if result["onnx_mb"] is not None else "N/A"
+            file.write(
+                f"{method:<28} {onnx_str:>10} {result['theoretical_mb']:>10.2f} "
+                f"{result['eff_bits']:>10.2f} {result['compression_ratio']:>8.2f}x\n"
+            )
+
+    print(f"\nSaved: {json_path}")
+    print(f"Saved: {txt_path}")
+
+
+if __name__ == "__main__":
+    main()

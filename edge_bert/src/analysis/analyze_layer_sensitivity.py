@@ -1,113 +1,102 @@
 import copy
-import torch
 from pathlib import Path
-from transformers import DistilBertForSequenceClassification, DistilBertTokenizerFast
-from datasets import load_dataset
+import sys
+
+import torch
 from sklearn.metrics import accuracy_score
+from transformers import DistilBertForSequenceClassification
 
-BIT_SIMULATION = 4  # simulate 4-bit worst-case
-MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-# =========================
-# Load Dataset
-# =========================
-dataset = load_dataset("glue", "sst2")
-
-tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
-
-def tokenize(example):
-    return tokenizer(
-        example["sentence"],
-        truncation=True,
-        padding="max_length",
-        max_length=128
-    )
-
-dataset = dataset.map(tokenize, batched=True)
-dataset = dataset.rename_column("label", "labels")
-dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-
-val_dataset = dataset["validation"]
-
-# =========================
-# Load Base Model
-# =========================
-base_model = DistilBertForSequenceClassification.from_pretrained(
-    "distilbert-base-uncased",
-    num_labels=2
+from shared.experiment_settings import (
+    DEFAULT_MODEL_NAME,
+    DEFAULT_NUM_LABELS,
+    SENSITIVITY_SETTINGS,
+    derive_locked_layers,
+    save_sensitivity_results,
 )
-base_model.load_state_dict(torch.load(MODELS_DIR / "baseline_best.pt", map_location="cpu"))
-base_model.eval()
+from shared.model_workflows import MODELS_DIR, load_sst2_validation_dataset
 
-# =========================
-# Fake Quantization Function
-# =========================
-def fake_quantize_tensor(tensor, bits):
-    qmin = 0.
-    qmax = 2.**bits - 1.
 
+BIT_SIMULATION = SENSITIVITY_SETTINGS["bit_simulation"]
+LOCK_THRESHOLD = SENSITIVITY_SETTINGS["lock_threshold"]
+
+
+def fake_quantize_tensor(tensor: torch.Tensor, bits: int) -> torch.Tensor:
+    qmin = 0.0
+    qmax = 2.0**bits - 1.0
     min_val, max_val = tensor.min(), tensor.max()
     scale = (max_val - min_val) / (qmax - qmin + 1e-8)
     zero_point = qmin - min_val / (scale + 1e-8)
-
     q_tensor = zero_point + tensor / (scale + 1e-8)
     q_tensor.clamp_(qmin, qmax).round_()
+    return scale * (q_tensor - zero_point)
 
-    dq_tensor = scale * (q_tensor - zero_point)
-    return dq_tensor
 
-# =========================
-# Baseline Accuracy
-# =========================
-def evaluate(model):
+def evaluate(model, dataset) -> float:
     predictions = []
     true_labels = []
-
     with torch.no_grad():
-        for sample in val_dataset:
+        for sample in dataset:
             input_ids = sample["input_ids"].unsqueeze(0)
             attention_mask = sample["attention_mask"].unsqueeze(0)
-            labels = sample["labels"]
-
             outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-            pred = torch.argmax(outputs.logits, dim=-1).item()
-
-            predictions.append(pred)
-            true_labels.append(labels.item())
-
+            predictions.append(torch.argmax(outputs.logits, dim=-1).item())
+            true_labels.append(sample["labels"].item())
     return accuracy_score(true_labels, predictions)
 
-baseline_acc = evaluate(base_model)
-print(f"Baseline Accuracy: {baseline_acc:.4f}")
 
-# =========================
-# Sensitivity Loop
-# =========================
-sensitivities = []
+def main() -> None:
+    val_dataset = load_sst2_validation_dataset(format_type="torch")
+    base_model = DistilBertForSequenceClassification.from_pretrained(
+        DEFAULT_MODEL_NAME,
+        num_labels=DEFAULT_NUM_LABELS,
+    )
+    base_model.load_state_dict(torch.load(MODELS_DIR / "baseline_best.pt", map_location="cpu"))
+    base_model.eval()
 
-for name, module in base_model.named_modules():
-    if isinstance(module, torch.nn.Linear):
+    baseline_acc = evaluate(base_model, val_dataset)
+    print(f"Baseline Accuracy: {baseline_acc:.4f}")
 
-        model_copy = copy.deepcopy(base_model)
+    sensitivities = []
+    for name, module in base_model.named_modules():
+        if isinstance(module, torch.nn.Linear):
+            model_copy = copy.deepcopy(base_model)
+            target_layer = dict(model_copy.named_modules())[name]
+            target_layer.weight.data = fake_quantize_tensor(target_layer.weight.data, BIT_SIMULATION)
+            acc = evaluate(model_copy, val_dataset)
+            drop = baseline_acc - acc
+            sensitivities.append((name, drop))
+            print(f"{name} -> Accuracy Drop: {drop:.4f}")
 
-        # Find same layer in copy
-        target_layer = dict(model_copy.named_modules())[name]
+    sensitivities.sort(key=lambda item: item[1], reverse=True)
+    sensitivity_by_layer = {layer: round(drop, 4) for layer, drop in sensitivities}
+    locked_layers = derive_locked_layers(sensitivity_by_layer, threshold=LOCK_THRESHOLD)
 
-        # Fake quantize weights
-        target_layer.weight.data = fake_quantize_tensor(
-            target_layer.weight.data,
-            BIT_SIMULATION
-        )
+    save_sensitivity_results(
+        {
+            "model_name": DEFAULT_MODEL_NAME,
+            "num_labels": DEFAULT_NUM_LABELS,
+            "bit_simulation": BIT_SIMULATION,
+            "baseline_accuracy": round(baseline_acc, 4),
+            "lock_threshold": LOCK_THRESHOLD,
+            "locked_layers": locked_layers,
+            "sensitivity_by_layer": sensitivity_by_layer,
+            "sorted_layers": [
+                {"layer": layer, "accuracy_drop": round(drop, 4)}
+                for layer, drop in sensitivities
+            ],
+        }
+    )
 
-        acc = evaluate(model_copy)
-        drop = baseline_acc - acc
+    print("\nMost Sensitive Layers:")
+    for layer, drop in sensitivities[:10]:
+        print(layer, round(drop, 4))
 
-        sensitivities.append((name, drop))
-        print(f"{name} → Accuracy Drop: {drop:.4f}")
+    print(f"\nLocked layers (threshold {LOCK_THRESHOLD:.4f}):")
+    for layer in locked_layers:
+        print(layer)
 
-# Sort by sensitivity
-sensitivities.sort(key=lambda x: x[1], reverse=True)
 
-print("\nMost Sensitive Layers:")
-for layer, drop in sensitivities[:10]:
-    print(layer, drop)
+if __name__ == "__main__":
+    main()

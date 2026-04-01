@@ -1,101 +1,50 @@
 import json
 from pathlib import Path
+import sys
 
-# -----------------------------
-# Sensitivity scores (paste yours)
-# -----------------------------
-sensitivity = {
-    "distilbert.transformer.layer.0.attention.q_lin": -0.0034,
-    "distilbert.transformer.layer.0.attention.k_lin": -0.0023,
-    "distilbert.transformer.layer.0.attention.v_lin": -0.0011,
-    "distilbert.transformer.layer.0.attention.out_lin": -0.0023,
-    "distilbert.transformer.layer.0.ffn.lin1": -0.0069,
-    "distilbert.transformer.layer.0.ffn.lin2": 0.0069,
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-    "distilbert.transformer.layer.1.attention.q_lin": -0.0046,
-    "distilbert.transformer.layer.1.attention.k_lin": 0.0011,
-    "distilbert.transformer.layer.1.attention.v_lin": 0.0000,
-    "distilbert.transformer.layer.1.attention.out_lin": -0.0034,
-    "distilbert.transformer.layer.1.ffn.lin1": 0.0138,
-    "distilbert.transformer.layer.1.ffn.lin2": 0.0883,
+from shared.experiment_settings import GREEDY_SETTINGS, MODELS_DIR, load_sensitivity_results
 
-    "distilbert.transformer.layer.2.attention.q_lin": -0.0034,
-    "distilbert.transformer.layer.2.attention.k_lin": -0.0023,
-    "distilbert.transformer.layer.2.attention.v_lin": -0.0069,
-    "distilbert.transformer.layer.2.attention.out_lin": -0.0034,
-    "distilbert.transformer.layer.2.ffn.lin1": 0.0195,
-    "distilbert.transformer.layer.2.ffn.lin2": 0.0241,
 
-    "distilbert.transformer.layer.3.attention.q_lin": -0.0011,
-    "distilbert.transformer.layer.3.attention.k_lin": -0.0046,
-    "distilbert.transformer.layer.3.attention.v_lin": -0.0023,
-    "distilbert.transformer.layer.3.attention.out_lin": 0.0023,
-    "distilbert.transformer.layer.3.ffn.lin1": 0.0023,
-    "distilbert.transformer.layer.3.ffn.lin2": 0.0069,
+def main() -> None:
+    sensitivity_results = load_sensitivity_results()
+    if not sensitivity_results:
+        raise FileNotFoundError("Run analyze_layer_sensitivity.py first to generate sensitivity_results.json.")
 
-    "distilbert.transformer.layer.4.attention.q_lin": -0.0034,
-    "distilbert.transformer.layer.4.attention.k_lin": 0.0000,
-    "distilbert.transformer.layer.4.attention.v_lin": 0.0000,
-    "distilbert.transformer.layer.4.attention.out_lin": -0.0011,
-    "distilbert.transformer.layer.4.ffn.lin1": -0.0011,
-    "distilbert.transformer.layer.4.ffn.lin2": 0.0023,
+    sensitivity = sensitivity_results["sensitivity_by_layer"]
+    locked_layers = set(sensitivity_results["locked_layers"])
+    search_layers = {layer: drop for layer, drop in sensitivity.items() if layer not in locked_layers}
+    sorted_layers = sorted(search_layers.items(), key=lambda item: item[1], reverse=True)
 
-    "distilbert.transformer.layer.5.attention.q_lin": 0.0023,
-    "distilbert.transformer.layer.5.attention.k_lin": -0.0023,
-    "distilbert.transformer.layer.5.attention.v_lin": -0.0034,
-    "distilbert.transformer.layer.5.attention.out_lin": -0.0023,
-    "distilbert.transformer.layer.5.ffn.lin1": -0.0034,
-    "distilbert.transformer.layer.5.ffn.lin2": 0.0000,
+    if GREEDY_SETTINGS["allocation_strategy"] != "tertiles":
+        raise ValueError(f"Unsupported greedy allocation strategy: {GREEDY_SETTINGS['allocation_strategy']}")
 
-    "pre_classifier": 0.0000,
-    "classifier": -0.0011
-}
+    count = len(sorted_layers)
+    top = sorted_layers[: count // 3]
+    mid = sorted_layers[count // 3 : 2 * count // 3]
+    low = sorted_layers[2 * count // 3 :]
 
-# -----------------------------
-# Locked sensitive layers
-# -----------------------------
-LOCKED = {
-    "distilbert.transformer.layer.1.ffn.lin2",
-    "distilbert.transformer.layer.2.ffn.lin2",
-    "distilbert.transformer.layer.2.ffn.lin1",
-    "distilbert.transformer.layer.1.ffn.lin1",
-}
+    greedy_config = {}
+    for layer, _ in top:
+        greedy_config[layer] = 8
+    for layer, _ in mid:
+        greedy_config[layer] = 6
+    for layer, _ in low:
+        greedy_config[layer] = 4
+    for layer in locked_layers:
+        greedy_config[layer] = 8
 
-# Remove locked layers from sorting
-search_layers = {k: v for k, v in sensitivity.items() if k not in LOCKED}
+    print("\nGreedy Bit Allocation\n")
+    for layer, bits in greedy_config.items():
+        print(layer, "->", bits)
 
-# Sort by sensitivity (descending)
-sorted_layers = sorted(search_layers.items(), key=lambda x: x[1], reverse=True)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    with open(MODELS_DIR / "greedy_config.json", "w", encoding="utf-8") as file:
+        json.dump(greedy_config, file, indent=4)
 
-n = len(sorted_layers)
+    print(f"\nSaved to {MODELS_DIR / 'greedy_config.json'}")
 
-top = sorted_layers[: n//3]
-mid = sorted_layers[n//3 : 2*n//3]
-low = sorted_layers[2*n//3 :]
 
-greedy_config = {}
-
-for layer,_ in top:
-    greedy_config[layer] = 8
-
-for layer,_ in mid:
-    greedy_config[layer] = 6
-
-for layer,_ in low:
-    greedy_config[layer] = 4
-
-# Add locked layers
-for layer in LOCKED:
-    greedy_config[layer] = 8
-
-print("\nGreedy Bit Allocation\n")
-
-for k,v in greedy_config.items():
-    print(k,"→",v)
-
-# Save config
-with open(MODELS_DIR / "greedy_config.json","w") as f:
-    json.dump(greedy_config,f,indent=4)
-
-print(f"\nSaved to {MODELS_DIR / 'greedy_config.json'}")
-MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
+if __name__ == "__main__":
+    main()

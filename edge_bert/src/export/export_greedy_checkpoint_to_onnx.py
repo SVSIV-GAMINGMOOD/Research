@@ -1,6 +1,11 @@
 import torch
 from pathlib import Path
+import sys
 from transformers import DistilBertForSequenceClassification
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS
 
 SRC_ROOT = Path(__file__).resolve().parents[1]
 MODELS_DIR = SRC_ROOT / "models"
@@ -8,7 +13,8 @@ MODEL_PATH = MODELS_DIR / "greedy_quant_model.pt"
 ONNX_PATH = MODELS_DIR / "greedy_quant_model.onnx"
 
 model = DistilBertForSequenceClassification.from_pretrained(
-    "distilbert-base-uncased"
+    DEFAULT_MODEL_NAME,
+    num_labels=DEFAULT_NUM_LABELS,
 )
 
 model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))

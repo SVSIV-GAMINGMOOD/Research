@@ -10,6 +10,8 @@ import json
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+from shared.experiment_settings import DEFAULT_MAX_LENGTH, DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS, load_sa_best_config
+
 # ==========================================================
 # 1. QUANTIZATION SIMULATION CLASSES
 # ==========================================================
@@ -100,7 +102,7 @@ def evaluate_model(model: nn.Module, dataloader, device="cpu"):
 # ==========================================================
 if __name__ == "__main__":
     # --- Configuration ---
-    MODEL_NAME = "distilbert-base-uncased"
+    MODEL_NAME = DEFAULT_MODEL_NAME
     SRC_ROOT = Path(__file__).resolve().parents[1]
     MODELS_DIR = SRC_ROOT / "models"
     BASELINE_PATH = MODELS_DIR / "baseline_best.pt"
@@ -114,7 +116,12 @@ if __name__ == "__main__":
     dataset = load_dataset("glue", "sst2", split="validation")
     
     def tokenize_function(examples):
-        return tokenizer(examples["sentence"], padding="max_length", truncation=True, max_length=128)
+        return tokenizer(
+            examples["sentence"],
+            padding="max_length",
+            truncation=True,
+            max_length=DEFAULT_MAX_LENGTH,
+        )
     
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     tokenized_datasets.set_format("torch", columns=["input_ids", "attention_mask", "label"])
@@ -125,7 +132,7 @@ if __name__ == "__main__":
 
     # --- A. Evaluate Baseline (FP16/FP32) ---
     print("--- 1. Evaluating FP16 Baseline ---")
-    model_base = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+    model_base = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=DEFAULT_NUM_LABELS)
     model_base.load_state_dict(torch.load(BASELINE_PATH, map_location="cpu"))
     model_base.to(DEVICE)
     base_acc, base_f1 = evaluate_model(model_base, dataloader, DEVICE)
@@ -136,7 +143,7 @@ if __name__ == "__main__":
     with open(MODELS_DIR / "greedy_config.json", "r") as f:
         greedy_config = json.load(f)
         
-    model_greedy = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+    model_greedy = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=DEFAULT_NUM_LABELS)
     model_greedy.load_state_dict(torch.load(BASELINE_PATH, map_location="cpu"))
     model_greedy = apply_mixed_precision(model_greedy, greedy_config)
     model_greedy.to(DEVICE)
@@ -145,11 +152,9 @@ if __name__ == "__main__":
 
     # --- C. Evaluate SA-Hybrid Model ---
     print("--- 3. Evaluating SA-Hybrid Quantized Model ---")
-    with open(MODELS_DIR / "hybrid_config_summary.json", "r") as f:
-        # Assumes your SA config is nested under the "sa_config" key
-        sa_config = json.load(f)["sa_config"] 
-        
-    model_sa = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+    sa_config = load_sa_best_config()
+
+    model_sa = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=DEFAULT_NUM_LABELS)
     model_sa.load_state_dict(torch.load(BASELINE_PATH, map_location="cpu"))
     model_sa = apply_mixed_precision(model_sa, sa_config)
     model_sa.to(DEVICE)

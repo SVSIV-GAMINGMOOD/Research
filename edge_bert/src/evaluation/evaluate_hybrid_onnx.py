@@ -4,32 +4,28 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+from shared.experiment_settings import EVALUATION_SETTINGS, load_all_model_results
 from shared.model_workflows import MODELS_DIR, RESULTS_DIR, evaluate_onnx_model, load_sst2_validation_dataset
 
 
 MODEL_PATH = MODELS_DIR / "hybrid_quant_model.onnx"
-MAX_SAMPLES = 872
-LATENCY_RUNS = 100
-THREADS = 4
-
-PREVIOUS_RESULTS = {
-    "FP32 Baseline": {"accuracy": 0.9117, "f1": None, "size_mb": 255.0, "latency_ms": None},
-    "INT8 Uniform": {"accuracy": 0.9117, "f1": None, "size_mb": 63.75, "latency_ms": None},
-    "Greedy Mixed": {"accuracy": 0.9106, "f1": 0.9124, "size_mb": None, "latency_ms": 14.45},
-    "SA Mixed (v1)": {"accuracy": 0.9002, "f1": 0.9037, "size_mb": None, "latency_ms": 14.41},
-}
+COMPARISON_METHODS = ["FP32 Baseline", "INT8 Uniform", "Greedy Mixed", "SA Mixed (v1)"]
 
 
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    dataset = load_sst2_validation_dataset(format_type="numpy", max_samples=MAX_SAMPLES)
+    dataset = load_sst2_validation_dataset(
+        format_type="numpy",
+        max_samples=EVALUATION_SETTINGS["max_samples"],
+    )
     metrics = evaluate_onnx_model(
         MODEL_PATH,
         dataset,
-        batch_size=32,
-        latency_runs=LATENCY_RUNS,
-        threads=THREADS,
+        batch_size=EVALUATION_SETTINGS["batch_size"],
+        latency_runs=EVALUATION_SETTINGS["latency_runs"],
+        threads=EVALUATION_SETTINGS["threads"],
     )
+    previous_results = load_all_model_results()
 
     print("\n" + "=" * 60)
     print("HYBRID QUANTIZATION - EVALUATION RESULTS")
@@ -47,11 +43,12 @@ def main() -> None:
     print("\n  FULL COMPARISON TABLE (paper-ready)")
     print(f"  {'Method':<25} {'Accuracy':>10} {'F1':>8} {'Size':>10} {'Latency':>12}")
     print("  " + "-" * 70)
-    for method, result in PREVIOUS_RESULTS.items():
-        acc_str = f"{result['accuracy']:.4f}"
-        f1_str = f"{result['f1']:.4f}" if result["f1"] is not None else "   -   "
-        size_str = f"{result['size_mb']:.1f} MB" if result["size_mb"] is not None else "   -   "
-        lat_str = f"{result['latency_ms']:.2f} ms" if result["latency_ms"] is not None else "   -   "
+    for method in COMPARISON_METHODS:
+        result = previous_results.get(method, {})
+        acc_str = f"{result['accuracy']:.4f}" if result.get("accuracy") is not None else "   -   "
+        f1_str = f"{result['f1']:.4f}" if result.get("f1") is not None else "   -   "
+        size_str = f"{result['onnx_mb']:.1f} MB" if result.get("onnx_mb") is not None else "   -   "
+        lat_str = f"{result['latency_avg']:.2f} ms" if result.get("latency_avg") is not None else "   -   "
         print(f"  {method:<25} {acc_str:>10} {f1_str:>8} {size_str:>10} {lat_str:>12}")
 
     print(
@@ -75,17 +72,14 @@ def main() -> None:
             "p99": round(metrics["latency_p99_ms"], 2),
         },
         "eval_config": {
-            "samples": MAX_SAMPLES,
-            "batch_size": 32,
-            "latency_runs": LATENCY_RUNS,
-            "threads": THREADS,
+            "samples": EVALUATION_SETTINGS["max_samples"],
+            "batch_size": EVALUATION_SETTINGS["batch_size"],
+            "latency_runs": EVALUATION_SETTINGS["latency_runs"],
+            "threads": EVALUATION_SETTINGS["threads"],
         },
     }
-
     json_path = RESULTS_DIR / "hybrid_eval_results.json"
-    json_path.write_text(json.dumps(results, indent=2))
-    print(f"\n  Results saved: {json_path}")
-
+    json_path.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
     txt_path = RESULTS_DIR / "hybrid_eval_results.txt"
     txt_path.write_text(
         "\n".join(
@@ -100,8 +94,10 @@ def main() -> None:
                 f"P95 Latency      : {metrics['latency_p95_ms']:.2f} ms",
             ]
         )
-        + "\n"
+        + "\n",
+        encoding="utf-8",
     )
+    print(f"\n  Results saved: {json_path}")
     print(f"  Results saved: {txt_path}")
 
 

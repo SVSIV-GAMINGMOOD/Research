@@ -13,12 +13,15 @@ from onnxruntime.quantization import QuantType, quantize_dynamic
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from transformers import AutoTokenizer, DistilBertForSequenceClassification
 
-
-SRC_ROOT = Path(__file__).resolve().parents[1]
-MODELS_DIR = SRC_ROOT / "models"
-RESULTS_DIR = SRC_ROOT / "results"
-DEFAULT_MODEL_NAME = "distilbert-base-uncased"
-DEFAULT_MAX_LENGTH = 128
+from shared.experiment_settings import (
+    DATASET_SETTINGS,
+    DEFAULT_MAX_LENGTH,
+    DEFAULT_MODEL_NAME,
+    DEFAULT_NUM_LABELS,
+    MODELS_DIR,
+    RESULTS_DIR,
+    SRC_ROOT,
+)
 
 
 def resolve_in_src(*parts: str) -> Path:
@@ -32,7 +35,11 @@ def load_sst2_validation_dataset(
     max_samples: int | None = None,
     format_type: str = "torch",
 ):
-    dataset = load_dataset("glue", "sst2", split="validation")
+    dataset = load_dataset(
+        DATASET_SETTINGS["name"],
+        DATASET_SETTINGS["config"],
+        split=DATASET_SETTINGS["evaluation_split"],
+    )
     if max_samples is not None:
         dataset = dataset.select(range(min(max_samples, len(dataset))))
 
@@ -61,7 +68,7 @@ def load_classifier_checkpoint(
     model_name: str = DEFAULT_MODEL_NAME,
     device: str = "cpu",
 ) -> DistilBertForSequenceClassification:
-    model = DistilBertForSequenceClassification.from_pretrained(model_name, num_labels=2)
+    model = DistilBertForSequenceClassification.from_pretrained(model_name, num_labels=DEFAULT_NUM_LABELS)
     state_dict = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(state_dict)
     model.to(device)
