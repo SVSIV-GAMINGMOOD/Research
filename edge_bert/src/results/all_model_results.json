@@ -1,0 +1,65 @@
+{
+  "FP32 Baseline": {
+    "accuracy": 0.9117,
+    "f1": 0.9143,
+    "roc_auc": 0.9736,
+    "latency_avg": 24.65,
+    "latency_p50": 24.56,
+    "latency_p95": 25.59,
+    "onnx_mb": 255.55
+  },
+  "INT8 Uniform": {
+    "accuracy": 0.9117,
+    "f1": 0.9138,
+    "roc_auc": 0.9699,
+    "latency_avg": 9.84,
+    "latency_p50": 9.8,
+    "latency_p95": 10.64,
+    "onnx_mb": 64.27
+  },
+  "FAR Frozen FP32": {
+    "accuracy": 0.9083,
+    "f1": 0.9129,
+    "roc_auc": 0.9689,
+    "latency_avg": 120.28,
+    "latency_p50": 161.57,
+    "latency_p95": 175.28,
+    "onnx_mb": 255.55
+  },
+  "FAR Frozen INT8": {
+    "accuracy": 0.8945,
+    "f1": 0.898,
+    "roc_auc": 0.9655,
+    "latency_avg": 9.47,
+    "latency_p50": 9.45,
+    "latency_p95": 9.87,
+    "onnx_mb": 64.27
+  },
+  "Greedy Mixed": {
+    "accuracy": 0.9106,
+    "f1": 0.9124,
+    "roc_auc": 0.9682,
+    "latency_avg": 24.03,
+    "latency_p50": 23.93,
+    "latency_p95": 24.77,
+    "onnx_mb": 255.55
+  },
+  "SA Mixed (v1)": {
+    "accuracy": 0.9002,
+    "f1": 0.9037,
+    "roc_auc": 0.9634,
+    "latency_avg": 25.84,
+    "latency_p50": 25.56,
+    "latency_p95": 27.54,
+    "onnx_mb": 255.51
+  },
+  "Hybrid INT8+SA (Ours)": {
+    "accuracy": 0.8991,
+    "f1": 0.9027,
+    "roc_auc": 0.9635,
+    "latency_avg": 163.49,
+    "latency_p50": 163.44,
+    "latency_p95": 169.96,
+    "onnx_mb": 187.48
+  }
+}

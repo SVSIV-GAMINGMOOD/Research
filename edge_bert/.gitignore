@@ -1,0 +1,51 @@
+# Python environments
+venv/
+.venv/
+env/
+ENV/
+venv_research/
+
+# Python cache / build outputs
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.hypothesis/
+build/
+dist/
+
+# Notebook and local experiment state
+.ipynb_checkpoints/
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local environment and logs
+.env
+.env.*
+*.log
+
+# Local AI assistant history
+.aider.chat.history.md
+.aider.input.history
+
+# Generated model binaries and checkpoints
+src/models/*.pt
+src/models/*.onnx
+src/models/**/*.safetensors
+src/llama.cpp/
+
+# Keep lightweight model metadata and tokenizer assets publishable
+!src/models/*.json
+!src/models/**/*.json
+!src/models/**/*.txt
+!src/models/**/*.py

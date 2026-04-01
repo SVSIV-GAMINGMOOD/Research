@@ -1,0 +1,21 @@
+{
+  "model": "models/hybrid_quant_model.onnx",
+  "metrics": {
+    "accuracy": 0.8991,
+    "f1": 0.9027,
+    "roc_auc": 0.9635,
+    "onnx_size_mb": 187.48
+  },
+  "latency_ms": {
+    "avg": 25.6,
+    "p50": 25.4,
+    "p95": 26.74,
+    "p99": 27.19
+  },
+  "eval_config": {
+    "samples": 872,
+    "batch_size": 32,
+    "latency_runs": 100,
+    "threads": 4
+  }
+}

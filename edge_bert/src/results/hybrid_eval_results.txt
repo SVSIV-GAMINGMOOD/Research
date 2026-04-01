@@ -1,0 +1,8 @@
+HYBRID QUANTIZATION — EVALUATION RESULTS
+============================================================
+Accuracy         : 0.8991
+F1 Score         : 0.9027
+ROC-AUC          : 0.9635
+ONNX File Size   : 187.48 MB
+Avg Latency      : 25.60 ms
+P95 Latency      : 26.74 ms

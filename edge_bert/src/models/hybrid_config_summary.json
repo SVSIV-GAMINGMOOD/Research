@@ -1,0 +1,62 @@
+{
+  "strategy": {
+    "embeddings": "INT8 (per-row scale)",
+    "locked_layers": "8-bit (FAR sensitivity)",
+    "sa_layers": "mixed {4,6,8} bit",
+    "layernorm": "FP32",
+    "softmax": "FP32"
+  },
+  "sizes": {
+    "fp32_mb": 255.25,
+    "effective_mb": 54.45,
+    "onnx_mb": 187.48,
+    "compression_ratio": 4.69,
+    "effective_bits": 6.83
+  },
+  "locked_layers": [
+    "distilbert.transformer.layer.1.ffn.lin2",
+    "distilbert.transformer.layer.2.ffn.lin2",
+    "distilbert.transformer.layer.2.ffn.lin1",
+    "distilbert.transformer.layer.1.ffn.lin1"
+  ],
+  "sa_config": {
+    "distilbert.transformer.layer.0.attention.q_lin": 8,
+    "distilbert.transformer.layer.0.attention.k_lin": 6,
+    "distilbert.transformer.layer.0.attention.v_lin": 4,
+    "distilbert.transformer.layer.0.attention.out_lin": 8,
+    "distilbert.transformer.layer.0.ffn.lin1": 4,
+    "distilbert.transformer.layer.0.ffn.lin2": 6,
+    "distilbert.transformer.layer.1.attention.q_lin": 6,
+    "distilbert.transformer.layer.1.attention.k_lin": 4,
+    "distilbert.transformer.layer.1.attention.v_lin": 4,
+    "distilbert.transformer.layer.1.attention.out_lin": 6,
+    "distilbert.transformer.layer.2.attention.q_lin": 4,
+    "distilbert.transformer.layer.2.attention.k_lin": 6,
+    "distilbert.transformer.layer.2.attention.v_lin": 4,
+    "distilbert.transformer.layer.2.attention.out_lin": 6,
+    "distilbert.transformer.layer.3.attention.q_lin": 8,
+    "distilbert.transformer.layer.3.attention.k_lin": 6,
+    "distilbert.transformer.layer.3.attention.v_lin": 4,
+    "distilbert.transformer.layer.3.attention.out_lin": 8,
+    "distilbert.transformer.layer.3.ffn.lin1": 8,
+    "distilbert.transformer.layer.3.ffn.lin2": 6,
+    "distilbert.transformer.layer.4.attention.q_lin": 8,
+    "distilbert.transformer.layer.4.attention.k_lin": 8,
+    "distilbert.transformer.layer.4.attention.v_lin": 8,
+    "distilbert.transformer.layer.4.attention.out_lin": 4,
+    "distilbert.transformer.layer.4.ffn.lin1": 4,
+    "distilbert.transformer.layer.4.ffn.lin2": 6,
+    "distilbert.transformer.layer.5.attention.q_lin": 4,
+    "distilbert.transformer.layer.5.attention.k_lin": 4,
+    "distilbert.transformer.layer.5.attention.v_lin": 8,
+    "distilbert.transformer.layer.5.attention.out_lin": 6,
+    "distilbert.transformer.layer.5.ffn.lin1": 6,
+    "distilbert.transformer.layer.5.ffn.lin2": 4,
+    "pre_classifier": 4,
+    "classifier": 8,
+    "distilbert.transformer.layer.1.ffn.lin2": 8,
+    "distilbert.transformer.layer.2.ffn.lin2": 8,
+    "distilbert.transformer.layer.2.ffn.lin1": 8,
+    "distilbert.transformer.layer.1.ffn.lin1": 8
+  }
+}

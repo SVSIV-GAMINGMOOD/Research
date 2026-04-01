@@ -1,0 +1,58 @@
+{
+  "FP32 Baseline": {
+    "onnx_file": "baseline_fp32.onnx",
+    "onnx_mb": 255.55,
+    "theoretical_mb": 255.41,
+    "eff_bits": 32.0,
+    "total_params": 66955010,
+    "compression_ratio": 1.0
+  },
+  "INT8 Uniform": {
+    "onnx_file": "baseline_int8.onnx",
+    "onnx_mb": 64.27,
+    "theoretical_mb": 132.04,
+    "eff_bits": 16.54,
+    "total_params": 66955010,
+    "compression_ratio": 1.93
+  },
+  "FAR Frozen FP32": {
+    "onnx_file": "frozen_fp32.onnx",
+    "onnx_mb": 255.55,
+    "theoretical_mb": 255.41,
+    "eff_bits": 32.0,
+    "total_params": 66955010,
+    "compression_ratio": 1.0
+  },
+  "FAR Frozen INT8": {
+    "onnx_file": "frozen_int8.onnx",
+    "onnx_mb": 64.27,
+    "theoretical_mb": 132.04,
+    "eff_bits": 16.54,
+    "total_params": 66955010,
+    "compression_ratio": 1.93
+  },
+  "Greedy Mixed": {
+    "onnx_file": "greedy_quant_model.onnx",
+    "onnx_mb": 255.55,
+    "theoretical_mb": 125.2,
+    "eff_bits": 15.69,
+    "total_params": 66955010,
+    "compression_ratio": 2.04
+  },
+  "SA Mixed (v1)": {
+    "onnx_file": "mixed_precision_real_quant.onnx",
+    "onnx_mb": 255.51,
+    "theoretical_mb": 122.67,
+    "eff_bits": 15.37,
+    "total_params": 66955010,
+    "compression_ratio": 2.08
+  },
+  "Hybrid INT8+SA (Ours)": {
+    "onnx_file": "hybrid_quant_model.onnx",
+    "onnx_mb": 187.48,
+    "theoretical_mb": 54.48,
+    "eff_bits": 6.83,
+    "total_params": 66955010,
+    "compression_ratio": 4.69
+  }
+}
