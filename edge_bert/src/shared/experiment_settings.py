@@ -35,6 +35,10 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "alpha": 5.0,
         "beta": 2.0,
         "gamma": 1.0,
+        "threshold_drop_percentages": [0.25, 0.5, 0.75, 1.0, 1.25],
+        "default_threshold_index": 0,
+        "guide_latency_weight": 1.0,
+        "guide_size_weight": 1.0,
         "initial_temperature": 1.0,
         "final_temperature": 0.05,
         "cooling_rate": 0.9,
@@ -173,6 +177,31 @@ def get_energy_weights() -> tuple[float, float, float]:
     return SEARCH_SETTINGS["alpha"], SEARCH_SETTINGS["beta"], SEARCH_SETTINGS["gamma"]
 
 
+def get_threshold_drop_percentages() -> list[float]:
+    raw_values = SEARCH_SETTINGS.get("threshold_drop_percentages", [])
+    return [abs(float(value)) for value in raw_values]
+
+
+def get_accuracy_thresholds(
+    baseline_accuracy: float,
+    drop_percentages: list[float] | None = None,
+) -> list[dict[str, float | str]]:
+    percentages = drop_percentages if drop_percentages is not None else get_threshold_drop_percentages()
+    unique_percentages = sorted({abs(float(value)) for value in percentages})
+    thresholds: list[dict[str, float | str]] = []
+    for drop_percent in unique_percentages:
+        threshold_accuracy = max(0.0, baseline_accuracy - (drop_percent / 100.0))
+        label = f"baseline_minus_{str(drop_percent).replace('.', 'p')}pct"
+        thresholds.append(
+            {
+                "label": label,
+                "drop_percent": drop_percent,
+                "accuracy_threshold": threshold_accuracy,
+            }
+        )
+    return thresholds
+
+
 def get_baseline_reference_metrics() -> tuple[float, float]:
     size_results = load_size_comparison_results()
     fp32_size_mb = (
@@ -192,25 +221,27 @@ def save_sensitivity_results(results: dict[str, Any]) -> None:
     save_json(sensitivity_results_path(), results)
 
 
-def save_sa_search_results(best_result: dict[str, Any], all_results: list[dict[str, Any]]) -> None:
-    payload = {
-        "settings": {
-            "search": SEARCH_SETTINGS,
-            "bit_options": DEFAULT_BIT_OPTIONS,
-            "locked_layers": get_locked_layers(),
-        },
-        "best_result": best_result,
-        "runs": all_results,
-    }
-    save_json(sa_search_results_path(), payload)
+def save_sa_search_results(search_results: dict[str, Any]) -> None:
+    save_json(sa_search_results_path(), search_results)
+
+    default_result = search_results.get("default_result") or {}
+    candidate = default_result.get("candidate")
+    if not candidate:
+        return
+
     save_json(
         sa_best_config_path(),
         {
-            "bit_config": best_result["candidate"],
-            "best_seed": best_result["seed"],
-            "energy": best_result["energy"],
-            "accuracy": best_result["accuracy"],
-            "size_mb": best_result["size"],
-            "latency_ms": best_result["latency"],
+            "bit_config": candidate,
+            "search_mode": search_results.get("search_mode", "weighted_sum"),
+            "baseline_accuracy": search_results.get("baseline_accuracy"),
+            "threshold_label": default_result.get("threshold_label"),
+            "threshold_accuracy": default_result.get("threshold_accuracy"),
+            "threshold_drop_percent": default_result.get("threshold_drop_percent"),
+            "best_seed": default_result.get("seed"),
+            "guide_energy": default_result.get("guide_energy"),
+            "accuracy": default_result.get("accuracy"),
+            "size_mb": default_result.get("size"),
+            "latency_ms": default_result.get("latency"),
         },
     )

@@ -37,6 +37,17 @@ base_model.to(DEVICE)
 base_model.eval()
 
 
+def get_searchable_layers() -> list[str]:
+    searchable_layers: list[str] = []
+    for name, module in base_model.named_modules():
+        if isinstance(module, torch.nn.Linear) and name not in LOCKED_LAYERS:
+            searchable_layers.append(name)
+    return searchable_layers
+
+
+SEARCHABLE_LAYERS = get_searchable_layers()
+
+
 def fake_quantize_tensor(tensor: torch.Tensor, bits: int) -> torch.Tensor:
     qmin = 0.0
     qmax = 2.0**bits - 1.0
@@ -65,7 +76,7 @@ def estimate_model_size(candidate_bits: dict[str, int]) -> float:
     total_bits = 0
     for name, module in base_model.named_modules():
         if isinstance(module, torch.nn.Linear):
-            bits = 8 if name in LOCKED_LAYERS else candidate_bits[name]
+            bits = 8 if name in LOCKED_LAYERS else candidate_bits.get(name, 8)
             total_bits += module.weight.numel() * bits
     return (total_bits / 8) / (1024**2)
 
@@ -76,22 +87,52 @@ def estimate_latency(candidate_bits: dict[str, int]) -> float:
     for name, module in base_model.named_modules():
         if isinstance(module, torch.nn.Linear):
             params = module.weight.numel()
-            bits = 8 if name in LOCKED_LAYERS else candidate_bits[name]
+            bits = 8 if name in LOCKED_LAYERS else candidate_bits.get(name, 8)
             weighted_sum += params * bits
             total_params += params * 8
     return BASELINE_LATENCY * (weighted_sum / total_params)
 
 
-def compute_energy(candidate_bits: dict[str, int]):
+def measure_baseline_accuracy() -> float:
+    return evaluate(base_model)
+
+
+def build_uniform_candidate(bits: int) -> dict[str, int]:
+    return {layer: bits for layer in SEARCHABLE_LAYERS}
+
+
+def evaluate_candidate(candidate_bits: dict[str, int]) -> tuple[float, float, float]:
     model_copy = copy.deepcopy(base_model)
     for name, module in model_copy.named_modules():
         if isinstance(module, torch.nn.Linear):
-            bits = 8 if name in LOCKED_LAYERS else candidate_bits[name]
+            bits = 8 if name in LOCKED_LAYERS else candidate_bits.get(name, 8)
             module.weight.data = fake_quantize_tensor(module.weight.data, bits)
 
     accuracy = evaluate(model_copy)
     size_mb = estimate_model_size(candidate_bits)
     latency_ms = estimate_latency(candidate_bits)
+    return accuracy, size_mb, latency_ms
+
+
+def get_size_latency_bounds() -> dict[str, float]:
+    min_bits = min(BIT_OPTIONS)
+    max_bits = max(BIT_OPTIONS)
+    min_candidate = build_uniform_candidate(min_bits)
+    max_candidate = build_uniform_candidate(max_bits)
+    min_size = estimate_model_size(min_candidate)
+    min_latency = estimate_latency(min_candidate)
+    max_size = estimate_model_size(max_candidate)
+    max_latency = estimate_latency(max_candidate)
+    return {
+        "size_min": min(min_size, max_size),
+        "size_max": max(min_size, max_size),
+        "latency_min": min(min_latency, max_latency),
+        "latency_max": max(min_latency, max_latency),
+    }
+
+
+def compute_energy(candidate_bits: dict[str, int]):
+    accuracy, size_mb, latency_ms = evaluate_candidate(candidate_bits)
     energy = (
         ALPHA * (1 - accuracy)
         + BETA * (latency_ms / BASELINE_LATENCY)
