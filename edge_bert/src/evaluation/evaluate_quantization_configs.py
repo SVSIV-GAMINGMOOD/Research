@@ -7,10 +7,17 @@ from datasets import load_dataset
 from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 import json
+from shared.model_workflows import load_classifier_checkpoint
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from shared.experiment_settings import DEFAULT_MAX_LENGTH, DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS, load_sa_best_config
+from shared.experiment_settings import (
+    DEFAULT_MAX_LENGTH,
+    DEFAULT_MODEL_NAME,
+    DEFAULT_NUM_LABELS,
+    baseline_checkpoint_path,
+    load_sa_best_config,
+)
 
 # ==========================================================
 # 1. QUANTIZATION SIMULATION CLASSES
@@ -105,7 +112,7 @@ if __name__ == "__main__":
     MODEL_NAME = DEFAULT_MODEL_NAME
     SRC_ROOT = Path(__file__).resolve().parents[1]
     MODELS_DIR = SRC_ROOT / "models"
-    BASELINE_PATH = MODELS_DIR / "baseline_best.pt"
+    BASELINE_PATH = baseline_checkpoint_path()
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     
     print(f"Running evaluation on: {DEVICE.upper()}")
@@ -130,23 +137,19 @@ if __name__ == "__main__":
     dataloader = torch.utils.data.DataLoader(tokenized_datasets, batch_size=32)
     print(f"Dataset loaded successfully: {len(dataset)} validation samples.\n")
 
-    # --- A. Evaluate Baseline (FP16/FP32) ---
-    print("--- 1. Evaluating FP16 Baseline ---")
-    model_base = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=DEFAULT_NUM_LABELS)
-    model_base.load_state_dict(torch.load(BASELINE_PATH, map_location="cpu"))
-    model_base.to(DEVICE)
+    # --- A. Evaluate Baseline Reference ---
+    print("--- 1. Evaluating Baseline Reference Checkpoint ---")
+    model_base = load_classifier_checkpoint(BASELINE_PATH, device=DEVICE)
     base_acc, base_f1 = evaluate_model(model_base, dataloader, DEVICE)
-    print(f"Baseline -> Accuracy: {base_acc:.4f} | F1: {base_f1:.4f}\n")
+    print(f"Baseline Reference -> Accuracy: {base_acc:.4f} | F1: {base_f1:.4f}\n")
 
     # --- B. Evaluate Greedy Model ---
     print("--- 2. Evaluating Greedy Quantized Model ---")
     with open(MODELS_DIR / "greedy_config.json", "r") as f:
         greedy_config = json.load(f)
         
-    model_greedy = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=DEFAULT_NUM_LABELS)
-    model_greedy.load_state_dict(torch.load(BASELINE_PATH, map_location="cpu"))
+    model_greedy = load_classifier_checkpoint(BASELINE_PATH, device=DEVICE)
     model_greedy = apply_mixed_precision(model_greedy, greedy_config)
-    model_greedy.to(DEVICE)
     greedy_acc, greedy_f1 = evaluate_model(model_greedy, dataloader, DEVICE)
     print(f"Greedy -> Accuracy: {greedy_acc:.4f} | F1: {greedy_f1:.4f}\n")
 
@@ -154,10 +157,8 @@ if __name__ == "__main__":
     print("--- 3. Evaluating SA-Hybrid Quantized Model ---")
     sa_config = load_sa_best_config()
 
-    model_sa = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=DEFAULT_NUM_LABELS)
-    model_sa.load_state_dict(torch.load(BASELINE_PATH, map_location="cpu"))
+    model_sa = load_classifier_checkpoint(BASELINE_PATH, device=DEVICE)
     model_sa = apply_mixed_precision(model_sa, sa_config)
-    model_sa.to(DEVICE)
     sa_acc, sa_f1 = evaluate_model(model_sa, dataloader, DEVICE)
     print(f"SA-Hybrid -> Accuracy: {sa_acc:.4f} | F1: {sa_f1:.4f}\n")
     

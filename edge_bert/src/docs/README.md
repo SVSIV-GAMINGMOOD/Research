@@ -1,35 +1,56 @@
-# DistilBERT Quantization and Evaluation Framework
+# Documentation Guide
 
-This repository contains a comprehensive framework for quantizing and evaluating DistilBERT models on the SST-2 dataset (GLUE benchmark). It includes various quantization techniques such as:
-- FP32 baseline
-- INT8 uniform quantization
-- FAR (frozen layer) quantization
-- Greedy mixed precision
-- Simulated Annealing (SA) mixed precision
-- Hybrid INT8+SA (our proposed method)
+This folder contains the current experiment documentation for the project.
 
-The framework is designed to compare accuracy, model size, and latency across different quantization strategies.
+## Primary documents
 
-## Table of Contents
-- [Installation](#installation)
-- [Project Structure](#project-structure)
-- [Quick Start](#quick-start)
-- [Detailed Usage](#detailed-usage)
-- [Results and Outputs](#results-and-outputs)
-- [Notes](#notes)
+- [roadmap.md](c:\Users\skvar\Desktop\workspace\Research\edge_bert\src\docs\roadmap.md)
+  - the main execution and experiment policy document
+  - explains the full run order
+  - describes result files and experiment tracking
 
-## Installation
+## Current experiment policy
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd <repository-directory>
-   ```
+- Primary research metrics backend:
+  - `ONNX`
+- Supplementary runtime backend:
+  - `llama.cpp` / `GGUF`
+- Primary deployment baseline:
+  - `FP16`
+- Research reference:
+  - `FP32`
+- Optional future precision branch only:
+  - `Greedy Mixed`
+  - `SA Mixed (v1)`
+  - `Hybrid INT8+SA (Ours)`
 
-2. Install the required dependencies:
-   ```bash
-   pip install torch transformers onnxruntime datasets scikit-learn matplotlib codecarbon psutil
-   ```
+## Result tracking
 
-## Project Structure
+The canonical experiment outputs live in:
 
+- [results/README.md](c:\Users\skvar\Desktop\workspace\Research\edge_bert\src\results\README.md)
+
+The main consolidated result files are:
+
+- `src/results/reference_model_results.json`
+- `src/results/all_model_results.json`
+- `src/results/size_comparison.json`
+- `src/results/experiment_registry.json`
+- `src/results/gguf_runtime_results.json`
+
+Training-history outputs for the two training regimens live in:
+
+- `src/results/training_histories/realistic/`
+- `src/results/training_histories/controlled/`
+
+New training workflow summary:
+
+- `src/training/realistic/`
+  - `max_epochs = 20`
+  - early stopping with `patience = 2`
+  - best-checkpoint reporting
+- `src/training/controlled/`
+  - fixed `10` epochs
+  - no early stopping
+- `src/analysis/plot_training_convergence.py`
+  - plots validation accuracy versus cumulative training steps across saved training histories

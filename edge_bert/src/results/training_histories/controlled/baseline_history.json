@@ -1,0 +1,102 @@
+{
+  "regimen_name": "controlled",
+  "model_label": "Baseline",
+  "max_epochs": 10,
+  "completed_epochs": 10,
+  "steps_per_epoch": 4210,
+  "best_epoch": 1,
+  "best_global_step": 4210,
+  "best_validation_accuracy": 0.914,
+  "best_validation_f1": 0.9169,
+  "early_stopping_patience": null,
+  "used_early_stopping": false,
+  "stopped_early": false,
+  "validation_strategy": "epoch_end",
+  "total_validation_passes": 10,
+  "validation_samples_per_pass": 872,
+  "total_validation_examples_processed": 8720,
+  "checkpoint_path": "models/controlled/baseline_best.pt",
+  "emissions_kg_co2eq": 0.109347,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 4210,
+      "train_loss": 0.2118,
+      "validation_accuracy": 0.914,
+      "validation_f1": 0.9169,
+      "is_best_checkpoint": true
+    },
+    {
+      "epoch": 2,
+      "global_step": 8420,
+      "train_loss": 0.1086,
+      "validation_accuracy": 0.9037,
+      "validation_f1": 0.9083,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 3,
+      "global_step": 12630,
+      "train_loss": 0.0692,
+      "validation_accuracy": 0.906,
+      "validation_f1": 0.9089,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 4,
+      "global_step": 16840,
+      "train_loss": 0.0454,
+      "validation_accuracy": 0.8991,
+      "validation_f1": 0.9011,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 5,
+      "global_step": 21050,
+      "train_loss": 0.0311,
+      "validation_accuracy": 0.9014,
+      "validation_f1": 0.9042,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 6,
+      "global_step": 25260,
+      "train_loss": 0.0226,
+      "validation_accuracy": 0.9025,
+      "validation_f1": 0.9061,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 7,
+      "global_step": 29470,
+      "train_loss": 0.0156,
+      "validation_accuracy": 0.8968,
+      "validation_f1": 0.9011,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 8,
+      "global_step": 33680,
+      "train_loss": 0.0111,
+      "validation_accuracy": 0.8979,
+      "validation_f1": 0.9012,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 9,
+      "global_step": 37890,
+      "train_loss": 0.0078,
+      "validation_accuracy": 0.906,
+      "validation_f1": 0.9093,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 10,
+      "global_step": 42100,
+      "train_loss": 0.0052,
+      "validation_accuracy": 0.9025,
+      "validation_f1": 0.9061,
+      "is_best_checkpoint": false
+    }
+  ]
+}

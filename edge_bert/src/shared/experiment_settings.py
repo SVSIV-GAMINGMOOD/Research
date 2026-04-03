@@ -52,7 +52,21 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "best_config_file": "sa_best_config.json",
     },
     "greedy": {"allocation_strategy": "tertiles"},
+    "training": {
+        "active_regimen": "realistic",
+        "available_regimens": ["realistic", "controlled"],
+    },
     "evaluation": {"batch_size": 32, "latency_runs": 100, "threads": 4, "max_samples": None},
+    "tracking": {
+        "primary_metrics_backend": "onnx",
+        "supplementary_runtime_backend": "llama.cpp_gguf",
+        "primary_baseline_precision": "fp16",
+        "reference_precision": "fp32",
+        "optional_fp8_models": ["Greedy Mixed", "SA Mixed (v1)", "Hybrid INT8+SA (Ours)"],
+        "reference_results_file": "reference_model_results.json",
+        "gguf_runtime_results_file": "gguf_runtime_results.json",
+        "registry_file": "experiment_registry.json",
+    },
 }
 
 
@@ -94,6 +108,8 @@ SENSITIVITY_SETTINGS = get_settings()["sensitivity"]
 SEARCH_SETTINGS = get_settings()["search"]
 EVALUATION_SETTINGS = get_settings()["evaluation"]
 GREEDY_SETTINGS = get_settings()["greedy"]
+TRAINING_SETTINGS = get_settings()["training"]
+TRACKING_SETTINGS = get_settings()["tracking"]
 
 DEFAULT_MODEL_NAME = MODEL_SETTINGS["name"]
 DEFAULT_NUM_LABELS = MODEL_SETTINGS["num_labels"]
@@ -113,6 +129,35 @@ def sa_search_results_path() -> Path:
 
 def sa_best_config_path() -> Path:
     return RESULTS_DIR / SEARCH_SETTINGS["best_config_file"]
+
+
+def reference_results_path() -> Path:
+    return RESULTS_DIR / TRACKING_SETTINGS["reference_results_file"]
+
+
+def gguf_runtime_results_path() -> Path:
+    return RESULTS_DIR / TRACKING_SETTINGS["gguf_runtime_results_file"]
+
+
+def experiment_registry_path() -> Path:
+    return RESULTS_DIR / TRACKING_SETTINGS["registry_file"]
+
+
+def get_active_training_regimen() -> str:
+    return str(TRAINING_SETTINGS["active_regimen"])
+
+
+def training_models_dir(regimen: str | None = None) -> Path:
+    target_regimen = regimen or get_active_training_regimen()
+    return MODELS_DIR / target_regimen
+
+
+def baseline_checkpoint_path(regimen: str | None = None) -> Path:
+    return training_models_dir(regimen) / "baseline_best.pt"
+
+
+def frozen_checkpoint_path(regimen: str | None = None) -> Path:
+    return training_models_dir(regimen) / "frozen_best.pt"
 
 
 def load_sensitivity_results() -> dict[str, Any] | None:
@@ -169,6 +214,10 @@ def load_all_model_results() -> dict[str, Any]:
     return load_json(RESULTS_DIR / "all_model_results.json", default={}) or {}
 
 
+def load_reference_model_results() -> dict[str, Any]:
+    return load_json(reference_results_path(), default={}) or {}
+
+
 def load_size_comparison_results() -> dict[str, Any]:
     return load_json(RESULTS_DIR / "size_comparison.json", default={}) or {}
 
@@ -219,6 +268,18 @@ def get_baseline_reference_metrics() -> tuple[float, float]:
 
 def save_sensitivity_results(results: dict[str, Any]) -> None:
     save_json(sensitivity_results_path(), results)
+
+
+def save_reference_model_results(results: dict[str, Any]) -> None:
+    save_json(reference_results_path(), results)
+
+
+def save_gguf_runtime_results(results: dict[str, Any]) -> None:
+    save_json(gguf_runtime_results_path(), results)
+
+
+def save_experiment_registry(results: dict[str, Any]) -> None:
+    save_json(experiment_registry_path(), results)
 
 
 def save_sa_search_results(search_results: dict[str, Any]) -> None:

@@ -1,0 +1,209 @@
+{
+  "model_name": "distilbert-base-uncased",
+  "num_labels": 2,
+  "bit_simulation": 4,
+  "baseline_accuracy": 0.9151,
+  "lock_threshold": 0.01,
+  "locked_layers": [
+    "distilbert.transformer.layer.0.ffn.lin2",
+    "distilbert.transformer.layer.1.ffn.lin1",
+    "distilbert.transformer.layer.1.ffn.lin2",
+    "distilbert.transformer.layer.2.ffn.lin1",
+    "distilbert.transformer.layer.2.ffn.lin2",
+    "distilbert.transformer.layer.3.ffn.lin2"
+  ],
+  "sensitivity_by_layer": {
+    "distilbert.transformer.layer.1.ffn.lin2": 0.0826,
+    "distilbert.transformer.layer.2.ffn.lin2": 0.0298,
+    "distilbert.transformer.layer.2.ffn.lin1": 0.0252,
+    "distilbert.transformer.layer.1.ffn.lin1": 0.0229,
+    "distilbert.transformer.layer.3.ffn.lin2": 0.0195,
+    "distilbert.transformer.layer.0.ffn.lin2": 0.0115,
+    "distilbert.transformer.layer.0.attention.out_lin": 0.008,
+    "distilbert.transformer.layer.4.ffn.lin2": 0.008,
+    "distilbert.transformer.layer.3.ffn.lin1": 0.0057,
+    "distilbert.transformer.layer.3.attention.v_lin": 0.0046,
+    "distilbert.transformer.layer.4.ffn.lin1": 0.0046,
+    "distilbert.transformer.layer.1.attention.k_lin": 0.0034,
+    "distilbert.transformer.layer.2.attention.out_lin": 0.0034,
+    "distilbert.transformer.layer.0.ffn.lin1": 0.0011,
+    "distilbert.transformer.layer.2.attention.q_lin": 0.0011,
+    "distilbert.transformer.layer.2.attention.v_lin": 0.0011,
+    "distilbert.transformer.layer.3.attention.q_lin": 0.0011,
+    "distilbert.transformer.layer.3.attention.out_lin": 0.0011,
+    "distilbert.transformer.layer.4.attention.q_lin": 0.0011,
+    "distilbert.transformer.layer.4.attention.k_lin": 0.0011,
+    "distilbert.transformer.layer.5.attention.q_lin": 0.0011,
+    "distilbert.transformer.layer.5.attention.v_lin": 0.0011,
+    "distilbert.transformer.layer.5.attention.out_lin": 0.0011,
+    "distilbert.transformer.layer.0.attention.q_lin": 0.0,
+    "distilbert.transformer.layer.0.attention.k_lin": 0.0,
+    "distilbert.transformer.layer.0.attention.v_lin": 0.0,
+    "distilbert.transformer.layer.1.attention.q_lin": 0.0,
+    "distilbert.transformer.layer.1.attention.out_lin": 0.0,
+    "distilbert.transformer.layer.3.attention.k_lin": 0.0,
+    "distilbert.transformer.layer.4.attention.out_lin": 0.0,
+    "distilbert.transformer.layer.5.ffn.lin1": 0.0,
+    "pre_classifier": 0.0,
+    "classifier": 0.0,
+    "distilbert.transformer.layer.2.attention.k_lin": -0.0011,
+    "distilbert.transformer.layer.4.attention.v_lin": -0.0011,
+    "distilbert.transformer.layer.5.attention.k_lin": -0.0011,
+    "distilbert.transformer.layer.5.ffn.lin2": -0.0011,
+    "distilbert.transformer.layer.1.attention.v_lin": -0.0034
+  },
+  "sorted_layers": [
+    {
+      "layer": "distilbert.transformer.layer.1.ffn.lin2",
+      "accuracy_drop": 0.0826
+    },
+    {
+      "layer": "distilbert.transformer.layer.2.ffn.lin2",
+      "accuracy_drop": 0.0298
+    },
+    {
+      "layer": "distilbert.transformer.layer.2.ffn.lin1",
+      "accuracy_drop": 0.0252
+    },
+    {
+      "layer": "distilbert.transformer.layer.1.ffn.lin1",
+      "accuracy_drop": 0.0229
+    },
+    {
+      "layer": "distilbert.transformer.layer.3.ffn.lin2",
+      "accuracy_drop": 0.0195
+    },
+    {
+      "layer": "distilbert.transformer.layer.0.ffn.lin2",
+      "accuracy_drop": 0.0115
+    },
+    {
+      "layer": "distilbert.transformer.layer.0.attention.out_lin",
+      "accuracy_drop": 0.008
+    },
+    {
+      "layer": "distilbert.transformer.layer.4.ffn.lin2",
+      "accuracy_drop": 0.008
+    },
+    {
+      "layer": "distilbert.transformer.layer.3.ffn.lin1",
+      "accuracy_drop": 0.0057
+    },
+    {
+      "layer": "distilbert.transformer.layer.3.attention.v_lin",
+      "accuracy_drop": 0.0046
+    },
+    {
+      "layer": "distilbert.transformer.layer.4.ffn.lin1",
+      "accuracy_drop": 0.0046
+    },
+    {
+      "layer": "distilbert.transformer.layer.1.attention.k_lin",
+      "accuracy_drop": 0.0034
+    },
+    {
+      "layer": "distilbert.transformer.layer.2.attention.out_lin",
+      "accuracy_drop": 0.0034
+    },
+    {
+      "layer": "distilbert.transformer.layer.0.ffn.lin1",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.2.attention.q_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.2.attention.v_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.3.attention.q_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.3.attention.out_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.4.attention.q_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.4.attention.k_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.5.attention.q_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.5.attention.v_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.5.attention.out_lin",
+      "accuracy_drop": 0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.0.attention.q_lin",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "distilbert.transformer.layer.0.attention.k_lin",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "distilbert.transformer.layer.0.attention.v_lin",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "distilbert.transformer.layer.1.attention.q_lin",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "distilbert.transformer.layer.1.attention.out_lin",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "distilbert.transformer.layer.3.attention.k_lin",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "distilbert.transformer.layer.4.attention.out_lin",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "distilbert.transformer.layer.5.ffn.lin1",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "pre_classifier",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "classifier",
+      "accuracy_drop": 0.0
+    },
+    {
+      "layer": "distilbert.transformer.layer.2.attention.k_lin",
+      "accuracy_drop": -0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.4.attention.v_lin",
+      "accuracy_drop": -0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.5.attention.k_lin",
+      "accuracy_drop": -0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.5.ffn.lin2",
+      "accuracy_drop": -0.0011
+    },
+    {
+      "layer": "distilbert.transformer.layer.1.attention.v_lin",
+      "accuracy_drop": -0.0034
+    }
+  ]
+}

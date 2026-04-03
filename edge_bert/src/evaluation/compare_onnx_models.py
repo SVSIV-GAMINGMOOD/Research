@@ -1,40 +1,44 @@
 from pathlib import Path
+import json
 import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from shared.model_workflows import MODELS_DIR, evaluate_onnx_model, load_sst2_validation_dataset
+from shared.experiment_settings import RESULTS_DIR
 
 
-MODELS = {
-    "FP32": MODELS_DIR / "baseline_fp32.onnx",
-    "INT8": MODELS_DIR / "baseline_int8.onnx",
-    "Frozen_INT8": MODELS_DIR / "frozen_int8.onnx",
-    "Greedy_Mixed": MODELS_DIR / "greedy_quant_model.onnx",
-    "SA_Mixed": MODELS_DIR / "mixed_precision_real_quant.onnx",
-}
+METHOD_ORDER = [
+    "FP32 Baseline",
+    "INT8 Uniform",
+    "FAR Frozen FP32",
+    "FAR Frozen INT8",
+    "Greedy Mixed",
+    "SA Mixed (v1)",
+    "Hybrid INT8+SA (Ours)",
+]
 
 
 def main() -> None:
-    dataset = load_sst2_validation_dataset(format_type="numpy")
-    results = []
-    print("\n===== MODEL COMPARISON =====\n")
+    results_path = RESULTS_DIR / "all_model_results.json"
+    if not results_path.exists():
+        raise FileNotFoundError(f"Missing ONNX comparison results: {results_path}")
 
-    for name, model_path in MODELS.items():
-        print(f"Evaluating {name} ...")
-        metrics = evaluate_onnx_model(model_path, dataset)
-        results.append((name, metrics))
+    all_results = json.loads(results_path.read_text(encoding="utf-8"))
+
+    print("\n===== ONNX MODEL COMPARISON =====\n")
+    print(f"{'Method':<28} {'Acc':>7} {'F1':>7} {'Latency':>10} {'ONNX MB':>10}")
+    print("-" * 68)
+    for method in METHOD_ORDER:
+        metrics = all_results.get(method)
+        if not metrics:
+            print(f"{method:<28} {'-':>7} {'-':>7} {'-':>10} {'-':>10}")
+            continue
         print(
-            f"{name} -> Acc {metrics['accuracy']:.4f} | F1 {metrics['f1']:.4f} "
-            f"| Size {metrics['onnx_size_mb']:.2f}MB | Lat {metrics['latency_avg_ms']:.2f}ms"
+            f"{method:<28} {metrics['accuracy']:>7.4f} {metrics['f1']:>7.4f} "
+            f"{metrics['latency_avg']:>8.2f} ms {metrics['onnx_mb']:>8.2f}"
         )
 
-    print("\n===== FINAL RESULTS TABLE =====\n")
-    for name, metrics in results:
-        print(
-            f"{name:12} | Acc {metrics['accuracy']:.4f} | F1 {metrics['f1']:.4f} "
-            f"| Size {metrics['onnx_size_mb']:.2f}MB | Lat {metrics['latency_avg_ms']:.2f}ms"
-        )
+    print(f"\nSource: {results_path}")
 
 
 if __name__ == "__main__":

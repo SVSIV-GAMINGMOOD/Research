@@ -1,0 +1,46 @@
+{
+  "regimen_name": "realistic",
+  "model_label": "Baseline",
+  "max_epochs": 20,
+  "completed_epochs": 3,
+  "steps_per_epoch": 4210,
+  "best_epoch": 1,
+  "best_global_step": 4210,
+  "best_validation_accuracy": 0.9151,
+  "best_validation_f1": 0.9181,
+  "early_stopping_patience": 2,
+  "used_early_stopping": true,
+  "stopped_early": true,
+  "validation_strategy": "epoch_end",
+  "total_validation_passes": 3,
+  "validation_samples_per_pass": 872,
+  "total_validation_examples_processed": 2616,
+  "checkpoint_path": "models/realistic/baseline_best.pt",
+  "emissions_kg_co2eq": 0.03306,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 4210,
+      "train_loss": 0.212,
+      "validation_accuracy": 0.9151,
+      "validation_f1": 0.9181,
+      "is_best_checkpoint": true
+    },
+    {
+      "epoch": 2,
+      "global_step": 8420,
+      "train_loss": 0.1101,
+      "validation_accuracy": 0.9025,
+      "validation_f1": 0.9075,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 3,
+      "global_step": 12630,
+      "train_loss": 0.0712,
+      "validation_accuracy": 0.9014,
+      "validation_f1": 0.9042,
+      "is_best_checkpoint": false
+    }
+  ]
+}

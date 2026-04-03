@@ -68,13 +68,13 @@ def compute_theoretical_size(model, linear_config=None, embed_bits=DEFAULT_BITS,
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     theoretical_configs = {
-        "FP32 Baseline": dict(default_bits=32),
-        "INT8 Uniform": dict(default_bits=8),
-        "FAR Frozen FP32": dict(default_bits=32),
-        "FAR Frozen INT8": dict(default_bits=8),
-        "Greedy Mixed": dict(linear_config=GREEDY_CONFIG),
-        "SA Mixed (v1)": dict(linear_config=SA_CONFIG),
-        "Hybrid INT8+SA (Ours)": dict(linear_config=SA_CONFIG, embed_bits=DEFAULT_EMBEDDING_BITS),
+    "FP32 Baseline": dict(default_bits=32, embed_bits=32),
+    "INT8 Uniform": dict(default_bits=8, embed_bits=8),
+    "FAR Frozen FP32": dict(default_bits=32, embed_bits=32),
+    "FAR Frozen INT8": dict(default_bits=8, embed_bits=8),
+    "Greedy Mixed": dict(linear_config=GREEDY_CONFIG),
+    "SA Mixed (v1)": dict(linear_config=SA_CONFIG),
+    "Hybrid INT8+SA (Ours)": dict(linear_config=SA_CONFIG, embed_bits=DEFAULT_EMBEDDING_BITS),
     }
 
     model = DistilBertForSequenceClassification.from_pretrained(

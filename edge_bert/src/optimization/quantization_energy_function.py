@@ -12,6 +12,7 @@ from shared.experiment_settings import (
     DEFAULT_BIT_OPTIONS,
     DEFAULT_MODEL_NAME,
     DEFAULT_NUM_LABELS,
+    baseline_checkpoint_path,
     get_baseline_reference_metrics,
     get_energy_weights,
     get_locked_layers,
@@ -32,7 +33,7 @@ base_model = DistilBertForSequenceClassification.from_pretrained(
     DEFAULT_MODEL_NAME,
     num_labels=DEFAULT_NUM_LABELS,
 )
-base_model.load_state_dict(torch.load(MODELS_DIR / "baseline_best.pt", map_location="cpu"))
+base_model.load_state_dict(torch.load(baseline_checkpoint_path(), map_location="cpu"))
 base_model.to(DEVICE)
 base_model.eval()
 

@@ -7,6 +7,15 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from shared.experiment_settings import EVALUATION_SETTINGS
 from shared.model_workflows import MODELS_DIR, RESULTS_DIR, evaluate_onnx_model, load_sst2_validation_dataset
 
+def total_onnx_size_mb(model_path):
+    p = Path(model_path)
+    size = 0
+    if p.exists():
+        size += p.stat().st_size
+    sidecar = p.with_suffix(p.suffix + ".data")
+    if sidecar.exists():
+        size += sidecar.stat().st_size
+    return size / (1024**2)
 
 ONNX_FILES = {
     "FP32 Baseline": MODELS_DIR / "baseline_fp32.onnx",
@@ -43,6 +52,9 @@ def main() -> None:
             latency_runs=EVALUATION_SETTINGS["latency_runs"],
             threads=EVALUATION_SETTINGS["threads"],
         )
+        
+        metrics["onnx_size_mb"] = total_onnx_size_mb(model_path)
+
         all_results[method] = {
             "accuracy": round(metrics["accuracy"], 4),
             "f1": round(metrics["f1"], 4),

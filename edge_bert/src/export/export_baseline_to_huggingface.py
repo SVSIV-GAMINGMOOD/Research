@@ -5,12 +5,12 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS
+from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS, baseline_checkpoint_path
 
 MODEL_NAME = DEFAULT_MODEL_NAME
 SRC_ROOT = Path(__file__).resolve().parents[1]
 MODELS_DIR = SRC_ROOT / "models"
-BASELINE_PATH = MODELS_DIR / "baseline_best.pt"
+BASELINE_PATH = baseline_checkpoint_path()
 
 print("Loading model and tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
@@ -24,17 +24,10 @@ model.load_state_dict(state)
 base_model = model.distilbert
 
 # Forcefully remove the problematic "cls" (classification/vocab) layers from the state dictionary
-state_dict = base_model.state_dict()
-keys_to_delete = []
-
-for key in state_dict.keys():
-    # If a layer has "vocab" or "classifier" or "pre_classifier" in the name, mark it for deletion
-    if "vocab" in key or "classifier" in key or "pre_classifier" in key:
-        keys_to_delete.append(key)
-
-for key in keys_to_delete:
-    print(f"Deleting problematic layer to appease llama.cpp: {key}")
-    del state_dict[key]
+state_dict = {
+    k: v for k, v in model.state_dict().items()
+    if not any(x in k for x in ["vocab", "classifier", "pre_classifier"])
+}
 
 # Load the cleaned state dict back into the base model
 # strict=False is required because we just deleted layers

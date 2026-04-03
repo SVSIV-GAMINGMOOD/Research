@@ -49,10 +49,31 @@
   "greedy": {
     "allocation_strategy": "tertiles"
   },
+  "training": {
+    "active_regimen": "realistic",
+    "available_regimens": [
+      "realistic",
+      "controlled"
+    ]
+  },
   "evaluation": {
     "batch_size": 32,
     "latency_runs": 100,
     "threads": 4,
     "max_samples": null
+  },
+  "tracking": {
+    "primary_metrics_backend": "onnx",
+    "supplementary_runtime_backend": "llama.cpp_gguf",
+    "primary_baseline_precision": "fp16",
+    "reference_precision": "fp32",
+    "optional_fp8_models": [
+      "Greedy Mixed",
+      "SA Mixed (v1)",
+      "Hybrid INT8+SA (Ours)"
+    ],
+    "reference_results_file": "reference_model_results.json",
+    "gguf_runtime_results_file": "gguf_runtime_results.json",
+    "registry_file": "experiment_registry.json"
   }
 }

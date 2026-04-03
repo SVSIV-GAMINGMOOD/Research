@@ -14,13 +14,14 @@ from shared.experiment_settings import (
     DEFAULT_MODEL_NAME,
     DEFAULT_NUM_LABELS,
     MODELS_DIR,
+    baseline_checkpoint_path,
     get_locked_layers,
     load_sa_best_config,
 )
 
 
 DEVICE = "cpu"
-BASELINE_PATH = MODELS_DIR / "baseline_best.pt"
+BASELINE_PATH = baseline_checkpoint_path()
 ONNX_OUT = MODELS_DIR / "hybrid_quant_model.onnx"
 SUMMARY_OUT = MODELS_DIR / "hybrid_config_summary.json"
 SEQ_LEN = 128
@@ -28,6 +29,32 @@ SA_CONFIG = load_sa_best_config()
 LOCKED_LAYERS = set(get_locked_layers())
 for layer in LOCKED_LAYERS:
     SA_CONFIG[layer] = 8
+
+
+class ExportWrapper(torch.nn.Module):
+    """
+    Export-friendly wrapper.
+
+    Transformers 5.5 builds a bidirectional attention mask internally via `sdpa_mask`, which can
+    crash under TorchScript-based ONNX tracing (IndexError inside `q_length[0]`).
+    If we provide a precomputed 4D attention mask, Transformers bypasses that path.
+    """
+
+    def __init__(self, model: DistilBertForSequenceClassification):
+        super().__init__()
+        self.model = model
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        # attention_mask: (batch, seq) with 1 for real tokens and 0 for padding
+        attn_bool = attention_mask > 0
+        # Pairwise token-visibility mask: (batch, 1, seq, seq)
+        pairwise = attn_bool[:, None, :, None] & attn_bool[:, None, None, :]
+
+        min_val = torch.finfo(torch.float32).min
+        mask = torch.where(pairwise, torch.zeros_like(pairwise, dtype=torch.float32), min_val)
+
+        out = self.model(input_ids=input_ids, attention_mask=mask)
+        return out.logits
 
 
 class QuantizedLinear(nn.Module):
@@ -60,8 +87,8 @@ class QuantizedEmbedding(nn.Module):
         super().__init__()
         weight = embedding_layer.weight.data
         q_min, q_max = -128, 127
-        abs_max = weight.abs().max(dim=1, keepdim=True).values
-        scale = (abs_max / 127.0).clamp(min=1e-8)
+        abs_max = weight.abs().max(dim=1, keepdim=True).values + 1e-8
+        scale = abs_max / 127.0
         q_weight = torch.clamp(torch.round(weight / scale), q_min, q_max).to(torch.int8)
         self.register_buffer("q_weight", q_weight)
         self.register_buffer("scale", scale)
@@ -132,16 +159,22 @@ def main() -> None:
     effective_size = total_bits / 8 / 1024 / 1024
     fp32_size = total_params * 32 / 8 / 1024 / 1024
 
-    dummy_ids = torch.randint(0, 1000, (1, SEQ_LEN), dtype=torch.long).to(DEVICE)
-    dummy_mask = torch.ones((1, SEQ_LEN), dtype=torch.long).to(DEVICE)
+    dummy_ids = torch.randint(0, 30522, (1, SEQ_LEN), dtype=torch.long, device=DEVICE)
+    dummy_mask = torch.ones((1, SEQ_LEN), dtype=torch.long, device=DEVICE)
+
+    # Wrap the model to precompute the 4D attention mask, bypassing the
+    # sdpa_mask crash in Transformers 5.5 during TorchScript-based ONNX tracing.
+    wrapped = ExportWrapper(model).to(DEVICE).eval()
+
     torch.onnx.export(
-        model,
+        wrapped,                          # <-- wrapped model, not raw model
         (dummy_ids, dummy_mask),
         ONNX_OUT,
         input_names=["input_ids", "attention_mask"],
         output_names=["logits"],
         dynamic_axes={"input_ids": {0: "batch"}, "attention_mask": {0: "batch"}, "logits": {0: "batch"}},
-        opset_version=14,
+        opset_version=18,
+        dynamo=False,
     )
     onnx_size = os.path.getsize(ONNX_OUT) / 1024 / 1024
 

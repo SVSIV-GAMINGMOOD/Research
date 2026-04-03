@@ -1,7 +1,6 @@
 import copy
 from pathlib import Path
 import sys
-
 import torch
 from sklearn.metrics import accuracy_score
 from transformers import DistilBertForSequenceClassification
@@ -12,10 +11,11 @@ from shared.experiment_settings import (
     DEFAULT_MODEL_NAME,
     DEFAULT_NUM_LABELS,
     SENSITIVITY_SETTINGS,
+    baseline_checkpoint_path,
     derive_locked_layers,
     save_sensitivity_results,
 )
-from shared.model_workflows import MODELS_DIR, load_sst2_validation_dataset
+from shared.model_workflows import MODELS_DIR, load_classifier_checkpoint, load_sst2_validation_dataset
 
 
 BIT_SIMULATION = SENSITIVITY_SETTINGS["bit_simulation"]
@@ -48,13 +48,11 @@ def evaluate(model, dataset) -> float:
 
 def main() -> None:
     val_dataset = load_sst2_validation_dataset(format_type="torch")
-    base_model = DistilBertForSequenceClassification.from_pretrained(
-        DEFAULT_MODEL_NAME,
-        num_labels=DEFAULT_NUM_LABELS,
+    base_model = load_classifier_checkpoint(
+    baseline_checkpoint_path(),
+    device="cuda" if torch.cuda.is_available() else "cpu"
     )
-    base_model.load_state_dict(torch.load(MODELS_DIR / "baseline_best.pt", map_location="cpu"))
-    base_model.eval()
-
+    
     baseline_acc = evaluate(base_model, val_dataset)
     print(f"Baseline Accuracy: {baseline_acc:.4f}")
 

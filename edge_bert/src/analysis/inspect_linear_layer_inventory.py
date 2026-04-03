@@ -2,22 +2,20 @@ import torch
 from pathlib import Path
 from transformers import DistilBertForSequenceClassification
 import sys
-
+from shared.model_workflows import load_classifier_checkpoint
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS
+from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS, baseline_checkpoint_path
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 
 # =========================
 # Load Full Fine-Tuned Model
 # =========================
-model = DistilBertForSequenceClassification.from_pretrained(
-    DEFAULT_MODEL_NAME,
-    num_labels=DEFAULT_NUM_LABELS
+model = load_classifier_checkpoint(
+    baseline_checkpoint_path(),
+    device="cpu"
 )
-model.load_state_dict(torch.load(MODELS_DIR / "baseline_best.pt", map_location="cpu"))
-model.eval()
 
 # =========================
 # Extract Linear Layers

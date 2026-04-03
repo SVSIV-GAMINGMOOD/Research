@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import onnx
 import onnxruntime as ort
 import torch
+import torch.nn as nn
 from datasets import load_dataset
 from onnxruntime.quantization import QuantType, quantize_dynamic
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
@@ -84,19 +87,20 @@ def evaluate_pytorch_model(
 ) -> dict[str, float]:
     predictions: list[int] = []
     labels: list[int] = []
+    device = next(model.parameters()).device
 
     with torch.no_grad():
         for sample in dataset:
-            input_ids = sample["input_ids"].unsqueeze(0)
-            attention_mask = sample["attention_mask"].unsqueeze(0)
+            input_ids = sample["input_ids"].unsqueeze(0).to(device)
+            attention_mask = sample["attention_mask"].unsqueeze(0).to(device)
             output = model(input_ids=input_ids, attention_mask=attention_mask)
             predictions.append(torch.argmax(output.logits, dim=-1).item())
             labels.append(sample["labels"].item())
 
     sample = dataset[0]
     inputs = {
-        "input_ids": sample["input_ids"].unsqueeze(0),
-        "attention_mask": sample["attention_mask"].unsqueeze(0),
+        "input_ids": sample["input_ids"].unsqueeze(0).to(device),
+        "attention_mask": sample["attention_mask"].unsqueeze(0).to(device),
     }
     for _ in range(10):
         with torch.no_grad():
@@ -195,6 +199,28 @@ def evaluate_onnx_model(
     }
 
 
+class _ExportWrapper(nn.Module):
+    """
+    Export-friendly wrapper.
+
+    Transformers 5.5 builds a bidirectional attention mask internally via `sdpa_mask`, which
+    crashes under TorchScript-based ONNX tracing (IndexError inside `q_length[0]`).
+    Providing a precomputed 4D attention mask causes Transformers to bypass that path entirely.
+    """
+
+    def __init__(self, model: DistilBertForSequenceClassification):
+        super().__init__()
+        self.model = model
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        attn_bool = attention_mask > 0
+        # (batch, 1, seq, seq) pairwise visibility mask
+        pairwise = attn_bool[:, None, :, None] & attn_bool[:, None, None, :]
+        min_val = torch.finfo(torch.float32).min
+        mask = torch.where(pairwise, torch.zeros_like(pairwise, dtype=torch.float32), min_val)
+        return self.model(input_ids=input_ids, attention_mask=mask).logits
+
+
 def export_checkpoint_to_onnx(
     checkpoint_path: os.PathLike[str] | str,
     output_path: os.PathLike[str] | str,
@@ -202,7 +228,12 @@ def export_checkpoint_to_onnx(
     model_name: str = DEFAULT_MODEL_NAME,
     max_length: int = DEFAULT_MAX_LENGTH,
 ) -> Path:
-    model = load_classifier_checkpoint(checkpoint_path, model_name=model_name)
+    model = load_classifier_checkpoint(checkpoint_path, model_name=model_name, device="cpu")
+    model.eval()
+
+    # Wrap to avoid sdpa_mask crash in Transformers 5.5 during TorchScript tracing.
+    wrapped = _ExportWrapper(model).eval()
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     dummy = tokenizer(
         "This is a sample sentence for ONNX export.",
@@ -213,19 +244,22 @@ def export_checkpoint_to_onnx(
     )
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.onnx.export(
-        model,
-        (dummy["input_ids"], dummy["attention_mask"]),
-        str(output_path),
-        input_names=["input_ids", "attention_mask"],
-        output_names=["logits"],
-        dynamic_axes={
-            "input_ids": {0: "batch_size"},
-            "attention_mask": {0: "batch_size"},
-            "logits": {0: "batch_size"},
-        },
-        opset_version=14,
-    )
+    with torch.no_grad():
+        torch.onnx.export(
+            wrapped,
+            (dummy["input_ids"], dummy["attention_mask"]),
+            str(output_path),
+            input_names=["input_ids", "attention_mask"],
+            output_names=["logits"],
+            dynamic_axes={
+                "input_ids": {0: "batch_size"},
+                "attention_mask": {0: "batch_size"},
+                "logits": {0: "batch_size"},
+            },
+            opset_version=18,
+            do_constant_folding=False,
+            export_params=True,
+        )
     return output_path
 
 
@@ -235,13 +269,50 @@ def quantize_onnx_model(
 ) -> dict[str, float]:
     int8_model_path = Path(int8_model_path)
     int8_model_path.parent.mkdir(parents=True, exist_ok=True)
-    quantize_dynamic(
-        model_input=str(fp32_model_path),
-        model_output=str(int8_model_path),
-        weight_type=QuantType.QInt8,
-    )
-    fp32_size = Path(fp32_model_path).stat().st_size / (1024**2)
-    int8_size = int8_model_path.stat().st_size / (1024**2)
+
+    with tempfile.TemporaryDirectory(prefix="edge_bert.quant.") as tmp_dir:
+        sanitized_fp32_path = Path(tmp_dir) / "sanitized_fp32.onnx"
+        model = onnx.load(str(fp32_model_path))
+
+        del model.graph.value_info[:]
+
+        input_batch_param = None
+        for inp in model.graph.input:
+            tt = inp.type.tensor_type
+            if tt.HasField("shape") and len(tt.shape.dim) > 0:
+                d0 = tt.shape.dim[0]
+                if d0.dim_param:
+                    input_batch_param = d0.dim_param
+                    break
+        if input_batch_param:
+            for out in model.graph.output:
+                tt = out.type.tensor_type
+                if tt.HasField("shape") and len(tt.shape.dim) > 0:
+                    d0 = tt.shape.dim[0]
+                    if d0.dim_value == 1 and not d0.dim_param:
+                        d0.dim_param = input_batch_param
+                        d0.dim_value = 0
+
+        onnx.save_model(model, str(sanitized_fp32_path))
+
+        quantize_dynamic(
+            model_input=str(sanitized_fp32_path),
+            model_output=str(int8_model_path),
+            weight_type=QuantType.QInt8,
+        )
+
+    def total_onnx_size_mb(model_path: os.PathLike[str] | str) -> float:
+        p = Path(model_path)
+        size = 0
+        if p.exists():
+            size += p.stat().st_size
+        sidecar = p.with_suffix(p.suffix + ".data")
+        if sidecar.exists():
+            size += sidecar.stat().st_size
+        return size / (1024**2)
+
+    fp32_size = total_onnx_size_mb(fp32_model_path)
+    int8_size = total_onnx_size_mb(int8_model_path)
     return {
         "fp32_size_mb": fp32_size,
         "int8_size_mb": int8_size,

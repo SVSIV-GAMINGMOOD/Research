@@ -39,9 +39,7 @@ Thumbs.db
 .aider.input.history
 
 # Generated model binaries and checkpoints
-src/models/*.pt
-src/models/*.onnx
-src/models/**/*.safetensors
+src/models/
 src/llama.cpp/
 
 # Keep lightweight model metadata and tokenizer assets publishable

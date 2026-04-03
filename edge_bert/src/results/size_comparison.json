@@ -1,7 +1,7 @@
 {
   "FP32 Baseline": {
     "onnx_file": "baseline_fp32.onnx",
-    "onnx_mb": 255.55,
+    "onnx_mb": 0.83,
     "theoretical_mb": 255.41,
     "eff_bits": 32.0,
     "total_params": 66955010,
@@ -9,15 +9,15 @@
   },
   "INT8 Uniform": {
     "onnx_file": "baseline_int8.onnx",
-    "onnx_mb": 64.27,
-    "theoretical_mb": 132.04,
-    "eff_bits": 16.54,
+    "onnx_mb": 64.75,
+    "theoretical_mb": 63.85,
+    "eff_bits": 8.0,
     "total_params": 66955010,
-    "compression_ratio": 1.93
+    "compression_ratio": 4.0
   },
   "FAR Frozen FP32": {
     "onnx_file": "frozen_fp32.onnx",
-    "onnx_mb": 255.55,
+    "onnx_mb": 0.83,
     "theoretical_mb": 255.41,
     "eff_bits": 32.0,
     "total_params": 66955010,
@@ -25,34 +25,34 @@
   },
   "FAR Frozen INT8": {
     "onnx_file": "frozen_int8.onnx",
-    "onnx_mb": 64.27,
-    "theoretical_mb": 132.04,
-    "eff_bits": 16.54,
+    "onnx_mb": 64.75,
+    "theoretical_mb": 63.85,
+    "eff_bits": 8.0,
     "total_params": 66955010,
-    "compression_ratio": 1.93
+    "compression_ratio": 4.0
   },
   "Greedy Mixed": {
     "onnx_file": "greedy_quant_model.onnx",
-    "onnx_mb": 255.55,
-    "theoretical_mb": 125.2,
-    "eff_bits": 15.69,
+    "onnx_mb": 255.52,
+    "theoretical_mb": 126.05,
+    "eff_bits": 15.79,
     "total_params": 66955010,
-    "compression_ratio": 2.04
+    "compression_ratio": 2.03
   },
   "SA Mixed (v1)": {
     "onnx_file": "mixed_precision_real_quant.onnx",
-    "onnx_mb": 255.51,
-    "theoretical_mb": 122.67,
-    "eff_bits": 15.37,
+    "onnx_mb": 255.52,
+    "theoretical_mb": 123.79,
+    "eff_bits": 15.51,
     "total_params": 66955010,
-    "compression_ratio": 2.08
+    "compression_ratio": 2.06
   },
   "Hybrid INT8+SA (Ours)": {
     "onnx_file": "hybrid_quant_model.onnx",
-    "onnx_mb": 187.48,
-    "theoretical_mb": 54.48,
-    "eff_bits": 6.83,
+    "onnx_mb": 187.45,
+    "theoretical_mb": 55.6,
+    "eff_bits": 6.97,
     "total_params": 66955010,
-    "compression_ratio": 4.69
+    "compression_ratio": 4.59
   }
 }

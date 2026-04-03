@@ -3,12 +3,13 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from shared.model_workflows import MODELS_DIR, evaluate_pytorch_model, load_classifier_checkpoint, load_sst2_validation_dataset
+from shared.experiment_settings import baseline_checkpoint_path
+from shared.model_workflows import evaluate_pytorch_model, load_classifier_checkpoint, load_sst2_validation_dataset
 
 
 def main() -> None:
     dataset = load_sst2_validation_dataset(format_type="torch")
-    model_path = MODELS_DIR / "baseline_best.pt"
+    model_path = baseline_checkpoint_path()
     model = load_classifier_checkpoint(model_path)
     metrics = evaluate_pytorch_model(model, dataset)
     size_mb = model_path.stat().st_size / (1024**2)

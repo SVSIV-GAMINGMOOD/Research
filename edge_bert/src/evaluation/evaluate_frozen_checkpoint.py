@@ -3,12 +3,13 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from shared.model_workflows import MODELS_DIR, evaluate_pytorch_model, load_classifier_checkpoint, load_sst2_validation_dataset
+from shared.experiment_settings import frozen_checkpoint_path
+from shared.model_workflows import evaluate_pytorch_model, load_classifier_checkpoint, load_sst2_validation_dataset
 
 
 def main() -> None:
     dataset = load_sst2_validation_dataset(format_type="torch")
-    model = load_classifier_checkpoint(MODELS_DIR / "frozen_best.pt")
+    model = load_classifier_checkpoint(frozen_checkpoint_path())
     metrics = evaluate_pytorch_model(model, dataset)
 
     print(f"Frozen FP32 Accuracy: {metrics['accuracy']:.4f}")

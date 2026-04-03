@@ -1,0 +1,40 @@
+{
+  "backend": "llama.cpp_gguf",
+  "notes": [
+    "Use llama.cpp / GGUF as supplementary runtime benchmarking only.",
+    "Do not replace ONNX-based classification metrics with llama.cpp throughput results.",
+    "Benchmark the same mixed-precision policies only after conversion fidelity is validated."
+  ],
+  "models": {
+    "Greedy Mixed": {
+      "status": "pending_conversion_and_benchmark",
+      "role": "supplementary_runtime_only",
+      "source_artifacts": {
+        "checkpoint": "src\\models\\greedy_quant_model.pt",
+        "onnx": "src\\models\\greedy_quant_model.onnx",
+        "tensor_map_hint": "src/artifacts/tensor_types_greedy.txt"
+      },
+      "runtime_metrics": null
+    },
+    "SA Mixed (v1)": {
+      "status": "pending_conversion_and_benchmark",
+      "role": "supplementary_runtime_only",
+      "source_artifacts": {
+        "onnx": "src\\models\\mixed_precision_real_quant.onnx",
+        "sa_config": "src/results/sa_best_config.json",
+        "tensor_map_hint": "custom tensor map still needed for standalone SA GGUF export"
+      },
+      "runtime_metrics": null
+    },
+    "Hybrid INT8+SA (Ours)": {
+      "status": "pending_conversion_and_benchmark",
+      "role": "supplementary_runtime_only",
+      "source_artifacts": {
+        "onnx": "src\\models\\hybrid_quant_model.onnx",
+        "summary": "src\\models\\hybrid_config_summary.json",
+        "tensor_map_hint": "src/artifacts/tensor_types_hybrid.txt"
+      },
+      "runtime_metrics": null
+    }
+  }
+}

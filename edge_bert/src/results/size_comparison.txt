@@ -1,9 +1,9 @@
 Method                          ONNX MB   Theory MB   Eff Bits    Ratio
 ----------------------------------------------------------------------
-FP32 Baseline                    255.55     255.41      32.00     1.00×
-INT8 Uniform                      64.27     132.04      16.54     1.93×
-FAR Frozen FP32                  255.55     255.41      32.00     1.00×
-FAR Frozen INT8                   64.27     132.04      16.54     1.93×
-Greedy Mixed                     255.55     125.20      15.69     2.04×
-SA Mixed (v1)                    255.51     122.67      15.37     2.08×
-Hybrid INT8+SA (Ours)            187.48      54.48       6.83     4.69×
+FP32 Baseline                      0.83     255.41      32.00     1.00x
+INT8 Uniform                      64.75      63.85       8.00     4.00x
+FAR Frozen FP32                    0.83     255.41      32.00     1.00x
+FAR Frozen INT8                   64.75      63.85       8.00     4.00x
+Greedy Mixed                     255.52     126.05      15.79     2.03x
+SA Mixed (v1)                    255.52     123.79      15.51     2.06x
+Hybrid INT8+SA (Ours)            187.45      55.60       6.97     4.59x

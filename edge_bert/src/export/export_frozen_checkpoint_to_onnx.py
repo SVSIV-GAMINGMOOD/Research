@@ -3,12 +3,13 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from shared.model_workflows import MODELS_DIR, export_checkpoint_to_onnx
+from shared.experiment_settings import MODELS_DIR, frozen_checkpoint_path
+from shared.model_workflows import export_checkpoint_to_onnx
 
 
 def main() -> None:
     output_path = export_checkpoint_to_onnx(
-        MODELS_DIR / "frozen_best.pt",
+        frozen_checkpoint_path(),
         MODELS_DIR / "frozen_fp32.onnx",
     )
     print(f"FP32 ONNX model exported to {output_path}")

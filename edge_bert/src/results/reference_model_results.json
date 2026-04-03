@@ -1,0 +1,42 @@
+{
+  "strategy": {
+    "primary_baseline_precision": "fp16",
+    "reference_precision": "fp32",
+    "notes": "FP16 is the intended modern deployment baseline. FP32 is kept as a research reference point."
+  },
+  "models": {
+    "Primary Baseline (FP16)": {
+      "status": "measured",
+      "backend": "pytorch",
+      "dtype": "fp16",
+      "checkpoint": "models/realistic/baseline_best.pt",
+      "device": "cuda",
+      "accuracy": 0.9151,
+      "f1": 0.9181,
+      "latency_ms": 3.11,
+      "model_file_size_mb": 255.45
+    },
+    "FP32 Research Reference": {
+      "status": "measured",
+      "backend": "pytorch",
+      "dtype": "fp32",
+      "checkpoint": "models/realistic/baseline_best.pt",
+      "device": "cuda",
+      "accuracy": 0.9151,
+      "f1": 0.9181,
+      "latency_ms": 16.89,
+      "model_file_size_mb": 255.45
+    },
+    "Frozen Checkpoint (FP32)": {
+      "status": "measured",
+      "backend": "pytorch",
+      "dtype": "fp32",
+      "checkpoint": "models/realistic/frozen_best.pt",
+      "device": "cuda",
+      "accuracy": 0.9071,
+      "f1": 0.9083,
+      "latency_ms": 17.87,
+      "model_file_size_mb": 255.45
+    }
+  }
+}

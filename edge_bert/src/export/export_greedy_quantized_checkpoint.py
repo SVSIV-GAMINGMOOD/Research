@@ -7,11 +7,10 @@ from transformers import DistilBertForSequenceClassification
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS
+from shared.experiment_settings import DEFAULT_MODEL_NAME, DEFAULT_NUM_LABELS, MODELS_DIR, baseline_checkpoint_path
 
 SRC_ROOT = Path(__file__).resolve().parents[1]
-MODELS_DIR = SRC_ROOT / "models"
-MODEL_PATH = MODELS_DIR / "baseline_best.pt"
+MODEL_PATH = baseline_checkpoint_path()
 
 with open(MODELS_DIR / "greedy_config.json") as f:
     bit_config = json.load(f)
