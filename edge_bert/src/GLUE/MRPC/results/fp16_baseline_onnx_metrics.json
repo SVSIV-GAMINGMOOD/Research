@@ -1,0 +1,14 @@
+{
+  "model": "C:\\Users\\skvar\\Desktop\\workspace\\Research\\edge_bert\\src\\GLUE\\MRPC\\models\\baseline_fp16.onnx",
+  "accuracy": 0.8505,
+  "f1": 0.8954,
+  "roc_auc": 0.9204,
+  "onnx_size_mb": 255.55,
+  "latency_avg_ms": 1.43,
+  "latency_p50_ms": 1.41,
+  "latency_p95_ms": 1.55,
+  "latency_p99_ms": 1.66,
+  "max_samples": null,
+  "batch_size": 32,
+  "threads": 4
+}

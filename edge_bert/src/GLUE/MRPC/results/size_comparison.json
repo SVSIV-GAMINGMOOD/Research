@@ -1,0 +1,50 @@
+{
+  "FP32 Research Reference": {
+    "onnx_file": "baseline_fp32.onnx",
+    "onnx_mb": 256.24,
+    "theoretical_mb": 255.41,
+    "effective_bits": 32.0,
+    "total_params": 66955010,
+    "compression_ratio": 1.0
+  },
+  "Primary Baseline (FP16)": {
+    "onnx_file": "baseline_fp16.onnx",
+    "onnx_mb": 255.55,
+    "theoretical_mb": 127.71,
+    "effective_bits": 16.0,
+    "total_params": 66955010,
+    "compression_ratio": 2.0
+  },
+  "INT8 Uniform": {
+    "onnx_file": "baseline_int8.onnx",
+    "onnx_mb": 64.74,
+    "theoretical_mb": 63.85,
+    "effective_bits": 8.0,
+    "total_params": 66955010,
+    "compression_ratio": 4.0
+  },
+  "Greedy Mixed": {
+    "onnx_file": "greedy_quant_model.onnx",
+    "onnx_mb": 255.54,
+    "theoretical_mb": 126.05,
+    "effective_bits": 15.79,
+    "total_params": 66955010,
+    "compression_ratio": 2.03
+  },
+  "SA (v1)": {
+    "onnx_file": "mixed_precision_real_quant.onnx",
+    "onnx_mb": 256.72,
+    "theoretical_mb": 125.06,
+    "effective_bits": 15.67,
+    "total_params": 66955010,
+    "compression_ratio": 2.04
+  },
+  "Hybrid SA (ours)": {
+    "onnx_file": "hybrid_quant_model.onnx",
+    "onnx_mb": 188.66,
+    "theoretical_mb": 56.87,
+    "effective_bits": 7.13,
+    "total_params": 66955010,
+    "compression_ratio": 4.49
+  }
+}

@@ -1,0 +1,8 @@
+Method                          ONNX MB   Theory MB   Eff Bits    Ratio
+------------------------------------------------------------------------
+FP32 Research Reference          256.24      255.41      32.00    1.00x
+Primary Baseline (FP16)          255.55      127.71      16.00    2.00x
+INT8 Uniform                      64.74       63.85       8.00    4.00x
+Greedy Mixed                     255.54      126.05      15.79    2.03x
+SA (v1)                          256.72      125.06      15.67    2.04x
+Hybrid SA (ours)                 188.66       56.87       7.13    4.49x

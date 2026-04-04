@@ -1,0 +1,91 @@
+{
+  "model": {
+    "name": "distilbert-base-uncased",
+    "num_labels": 2
+  },
+  "dataset": {
+    "name": "glue",
+    "config": "qqp",
+    "train_split": "train",
+    "validation_split": "validation",
+    "text_columns": ["question1", "question2"],
+    "max_length": 128,
+    "vocab_size": 30522
+  },
+  "training": {
+    "active_regimen": "realistic",
+    "available_regimens": ["realistic", "controlled"],
+    "configs": {
+      "realistic": {
+        "max_epochs": 20,
+        "early_stopping_patience": 2,
+        "batch_size": 16,
+        "learning_rate": 2e-5,
+        "seed": 42
+      },
+      "controlled": {
+        "max_epochs": 5,
+        "early_stopping_patience": null,
+        "batch_size": 16,
+        "learning_rate": 2e-5,
+        "seed": 42
+      }
+    }
+  },
+  "evaluation": {
+    "batch_size": 32,
+    "latency_runs": 100,
+    "threads": 4,
+    "max_samples": null
+  },
+  "quantization": {
+    "bit_options": [4, 6, 8],
+    "default_bits": 32,
+    "embedding_bits": 8
+  },
+  "sensitivity": {
+    "bit_simulation": 4,
+    "lock_threshold": 0.01,
+    "subset_strategy": "fixed_random_cap",
+    "subset_size": 2048,
+    "subset_seed": 42,
+    "results_file": "sensitivity_results.json"
+  },
+  "search": {
+    "alpha": 5.0,
+    "beta": 2.0,
+    "gamma": 1.0,
+    "threshold_drop_percentages": [0.25, 0.5, 0.75, 1.0, 1.25],
+    "default_threshold_index": 0,
+    "guide_latency_weight": 1.0,
+    "guide_size_weight": 1.0,
+    "initial_temperature": 1.0,
+    "final_temperature": 0.05,
+    "cooling_rate": 0.9,
+    "iterations_per_temp": 3,
+    "early_stop_patience": 8,
+    "plateau_eps": 0.001,
+    "num_runs": 3,
+    "baseline_size_mb_fallback": 255.55,
+    "baseline_latency_ms_fallback": 14.67,
+    "results_file": "sa_search_results.json",
+    "best_config_file": "sa_best_config.json",
+    "search_eval_max_samples": null,
+    "search_batch_size": 16
+  },
+  "greedy": {
+    "allocation_strategy": "tertiles"
+  },
+  "runtime": {
+    "fp16_onnx_provider": "CUDAExecutionProvider",
+    "default_onnx_providers": ["CPUExecutionProvider"]
+  },
+  "tracking": {
+    "reference_results_file": "reference_model_results.json",
+    "all_model_results_file": "all_model_results.json",
+    "all_model_results_txt_file": "all_model_results.txt",
+    "fp16_baseline_onnx_metrics_file": "fp16_baseline_onnx_metrics.json",
+    "greedy_config_file": "greedy_config.json",
+    "hybrid_summary_file": "hybrid_config_summary.json"
+  }
+}

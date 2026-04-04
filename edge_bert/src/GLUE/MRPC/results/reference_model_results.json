@@ -1,0 +1,33 @@
+{
+  "strategy": {
+    "primary_baseline_precision": "fp16",
+    "reference_precision": "fp32",
+    "notes": "MRPC uses FP16 as the primary baseline and FP32 as the research reference."
+  },
+  "models": {
+    "Primary Baseline (FP16)": {
+      "status": "measured",
+      "backend": "pytorch",
+      "dtype": "fp16",
+      "checkpoint": "models/realistic/baseline_best.pt",
+      "device": "cuda",
+      "accuracy": 0.8505,
+      "f1": 0.8954,
+      "roc_auc": 0.9204,
+      "latency_ms": 4.24,
+      "model_file_size_mb": 255.45
+    },
+    "FP32 Research Reference": {
+      "status": "measured",
+      "backend": "pytorch",
+      "dtype": "fp32",
+      "checkpoint": "models/realistic/baseline_best.pt",
+      "device": "cuda",
+      "accuracy": 0.8505,
+      "f1": 0.8954,
+      "roc_auc": 0.9203,
+      "latency_ms": 4.14,
+      "model_file_size_mb": 255.45
+    }
+  }
+}

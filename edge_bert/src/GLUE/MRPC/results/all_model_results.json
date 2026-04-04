@@ -1,0 +1,56 @@
+{
+  "FP32 Research Reference": {
+    "accuracy": 0.8505,
+    "f1": 0.8954,
+    "roc_auc": 0.9203,
+    "latency_avg": 25.57,
+    "latency_p50": 25.43,
+    "latency_p95": 26.68,
+    "onnx_mb": 256.24
+  },
+  "Primary Baseline (FP16)": {
+    "accuracy": 0.8505,
+    "f1": 0.8954,
+    "roc_auc": 0.9204,
+    "latency_avg": 1.71,
+    "latency_p50": 1.45,
+    "latency_p95": 3.03,
+    "onnx_mb": 255.55
+  },
+  "INT8 Uniform": {
+    "accuracy": 0.8652,
+    "f1": 0.9057,
+    "roc_auc": 0.91,
+    "latency_avg": 10.33,
+    "latency_p50": 10.27,
+    "latency_p95": 10.97,
+    "onnx_mb": 64.74
+  },
+  "Greedy Mixed": {
+    "accuracy": 0.8407,
+    "f1": 0.8862,
+    "roc_auc": 0.8968,
+    "latency_avg": 24.8,
+    "latency_p50": 24.79,
+    "latency_p95": 26.0,
+    "onnx_mb": 255.54
+  },
+  "SA (v1)": {
+    "accuracy": 0.8578,
+    "f1": 0.902,
+    "roc_auc": 0.913,
+    "latency_avg": 25.85,
+    "latency_p50": 25.81,
+    "latency_p95": 27.54,
+    "onnx_mb": 256.72
+  },
+  "Hybrid SA (ours)": {
+    "accuracy": 0.8578,
+    "f1": 0.902,
+    "roc_auc": 0.9125,
+    "latency_avg": 26.68,
+    "latency_p50": 26.44,
+    "latency_p95": 28.48,
+    "onnx_mb": 188.66
+  }
+}

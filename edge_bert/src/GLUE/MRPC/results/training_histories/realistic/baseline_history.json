@@ -1,0 +1,70 @@
+{
+  "regimen_name": "realistic",
+  "model_label": "MRPC Baseline",
+  "dataset_name": "glue",
+  "dataset_config": "mrpc",
+  "text_columns": [
+    "sentence1",
+    "sentence2"
+  ],
+  "model_name": "distilbert-base-uncased",
+  "max_length": 128,
+  "max_epochs": 20,
+  "completed_epochs": 5,
+  "steps_per_epoch": 230,
+  "best_epoch": 3,
+  "best_global_step": 690,
+  "best_validation_accuracy": 0.8505,
+  "best_validation_f1": 0.8954,
+  "early_stopping_patience": 2,
+  "used_early_stopping": true,
+  "stopped_early": true,
+  "validation_strategy": "epoch_end",
+  "total_validation_passes": 5,
+  "validation_samples_per_pass": 408,
+  "total_validation_examples_processed": 2040,
+  "checkpoint_path": "models/realistic/baseline_best.pt",
+  "emissions_kg_co2eq": 0.003235,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 230,
+      "train_loss": 0.5303,
+      "validation_accuracy": 0.8431,
+      "validation_f1": 0.893,
+      "is_best_checkpoint": true
+    },
+    {
+      "epoch": 2,
+      "global_step": 460,
+      "train_loss": 0.3334,
+      "validation_accuracy": 0.8358,
+      "validation_f1": 0.8831,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 3,
+      "global_step": 690,
+      "train_loss": 0.1774,
+      "validation_accuracy": 0.8505,
+      "validation_f1": 0.8954,
+      "is_best_checkpoint": true
+    },
+    {
+      "epoch": 4,
+      "global_step": 920,
+      "train_loss": 0.0909,
+      "validation_accuracy": 0.8235,
+      "validation_f1": 0.8705,
+      "is_best_checkpoint": false
+    },
+    {
+      "epoch": 5,
+      "global_step": 1150,
+      "train_loss": 0.0599,
+      "validation_accuracy": 0.8186,
+      "validation_f1": 0.8775,
+      "is_best_checkpoint": false
+    }
+  ]
+}
