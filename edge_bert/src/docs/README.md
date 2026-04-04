@@ -21,8 +21,8 @@ This folder contains the current experiment documentation for the project.
   - `FP32`
 - Optional future precision branch only:
   - `Greedy Mixed`
-  - `SA Mixed (v1)`
-  - `Hybrid INT8+SA (Ours)`
+  - `SA (v1)`
+  - `Hybrid SA (ours)`
 
 ## Result tracking
 
@@ -37,6 +37,8 @@ The main consolidated result files are:
 - `src/results/size_comparison.json`
 - `src/results/experiment_registry.json`
 - `src/results/gguf_runtime_results.json`
+
+`src/results/gguf_runtime_results.json` now tracks the latest valid CPU and CUDA GGUF benchmark batch from `src/llama.cpp/benchmarks/` and keeps earlier CPU-only benchmark attempts as archived provenance.
 
 Training-history outputs for the two training regimens live in:
 
@@ -54,3 +56,4 @@ New training workflow summary:
   - no early stopping
 - `src/analysis/plot_training_convergence.py`
   - plots validation accuracy versus cumulative training steps across saved training histories
+

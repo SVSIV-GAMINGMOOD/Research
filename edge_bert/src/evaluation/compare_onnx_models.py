@@ -13,8 +13,8 @@ METHOD_ORDER = [
     "FAR Frozen FP32",
     "FAR Frozen INT8",
     "Greedy Mixed",
-    "SA Mixed (v1)",
-    "Hybrid INT8+SA (Ours)",
+    "SA (v1)",
+    "Hybrid SA (ours)",
 ]
 
 
@@ -43,3 +43,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

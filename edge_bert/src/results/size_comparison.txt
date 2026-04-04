@@ -5,5 +5,6 @@ INT8 Uniform                      64.75      63.85       8.00     4.00x
 FAR Frozen FP32                    0.83     255.41      32.00     1.00x
 FAR Frozen INT8                   64.75      63.85       8.00     4.00x
 Greedy Mixed                     255.52     126.05      15.79     2.03x
-SA Mixed (v1)                    255.52     123.79      15.51     2.06x
-Hybrid INT8+SA (Ours)            187.45      55.60       6.97     4.59x
+SA (v1)                    255.52     123.79      15.51     2.06x
+Hybrid SA (ours)            187.45      55.60       6.97     4.59x
+

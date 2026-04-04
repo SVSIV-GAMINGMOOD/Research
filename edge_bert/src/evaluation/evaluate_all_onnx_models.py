@@ -23,8 +23,8 @@ ONNX_FILES = {
     "FAR Frozen FP32": MODELS_DIR / "frozen_fp32.onnx",
     "FAR Frozen INT8": MODELS_DIR / "frozen_int8.onnx",
     "Greedy Mixed": MODELS_DIR / "greedy_quant_model.onnx",
-    "SA Mixed (v1)": MODELS_DIR / "mixed_precision_real_quant.onnx",
-    "Hybrid INT8+SA (Ours)": MODELS_DIR / "hybrid_quant_model.onnx",
+    "SA (v1)": MODELS_DIR / "mixed_precision_real_quant.onnx",
+    "Hybrid SA (ours)": MODELS_DIR / "hybrid_quant_model.onnx",
 }
 
 
@@ -105,3 +105,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

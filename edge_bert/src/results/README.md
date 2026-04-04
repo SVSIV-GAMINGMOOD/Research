@@ -8,7 +8,7 @@ This folder is the canonical store for experiment outputs and result registries.
 - `all_model_results.json`: ONNX evaluation metrics for the main model comparison table
 - `size_comparison.json`: theoretical and exported size comparison across model variants
 - `experiment_registry.json`: consolidated registry of created models, result sources, and experiment tracks
-- `gguf_runtime_results.json`: supplementary `llama.cpp` / GGUF runtime benchmark status and placeholders
+- `gguf_runtime_results.json`: supplementary `llama.cpp` / GGUF CPU and CUDA runtime summaries, benchmark provenance, and archived non-canonical runs
 
 ## Supporting result files
 
@@ -24,6 +24,8 @@ This folder is the canonical store for experiment outputs and result registries.
   - ONNX-based evaluation for classification quality, latency, and model-size comparisons
 - Supplementary runtime benchmarking:
   - `llama.cpp` / GGUF benchmarking for runtime-only comparisons after conversion fidelity is validated
+  - canonical tracked CPU/CUDA batch currently comes from `src/llama.cpp/benchmarks/20260404_134936_*`
+  - archived `20260404_123103_*` runs are retained for provenance only because GPU offload was not actually available in that batch
 
 ## Precision policy
 
@@ -31,8 +33,8 @@ This folder is the canonical store for experiment outputs and result registries.
 - Research reference: `FP32`
 - Optional experimental track only:
   - `Greedy Mixed`
-  - `SA Mixed (v1)`
-  - `Hybrid INT8+SA (Ours)`
+  - `SA (v1)`
+  - `Hybrid SA (ours)`
 
 The FP8 track is intentionally optional and is not required for the current mandatory result set.
 
@@ -51,3 +53,4 @@ This makes it easier to document the validation budget for:
 - realistic training with early stopping
 - controlled fixed-epoch comparisons
 - convergence plots based on accuracy versus training steps
+

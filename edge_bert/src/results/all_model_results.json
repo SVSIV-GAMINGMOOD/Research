@@ -44,7 +44,7 @@
     "latency_p95": 25.57,
     "onnx_mb": 255.52
   },
-  "SA Mixed (v1)": {
+  "SA (v1)": {
     "accuracy": 0.9037,
     "f1": 0.9067,
     "roc_auc": 0.9701,
@@ -53,7 +53,7 @@
     "latency_p95": 26.96,
     "onnx_mb": 255.52
   },
-  "Hybrid INT8+SA (Ours)": {
+  "Hybrid SA (ours)": {
     "accuracy": 0.9083,
     "f1": 0.9109,
     "roc_auc": 0.9703,

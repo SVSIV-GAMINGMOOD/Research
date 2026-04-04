@@ -39,7 +39,7 @@
     "total_params": 66955010,
     "compression_ratio": 2.03
   },
-  "SA Mixed (v1)": {
+  "SA (v1)": {
     "onnx_file": "mixed_precision_real_quant.onnx",
     "onnx_mb": 255.52,
     "theoretical_mb": 123.79,
@@ -47,7 +47,7 @@
     "total_params": 66955010,
     "compression_ratio": 2.06
   },
-  "Hybrid INT8+SA (Ours)": {
+  "Hybrid SA (ours)": {
     "onnx_file": "hybrid_quant_model.onnx",
     "onnx_mb": 187.45,
     "theoretical_mb": 55.6,
@@ -56,3 +56,4 @@
     "compression_ratio": 4.59
   }
 }
+

@@ -69,11 +69,12 @@
     "reference_precision": "fp32",
     "optional_fp8_models": [
       "Greedy Mixed",
-      "SA Mixed (v1)",
-      "Hybrid INT8+SA (Ours)"
+      "SA (v1)",
+      "Hybrid SA (ours)"
     ],
     "reference_results_file": "reference_model_results.json",
     "gguf_runtime_results_file": "gguf_runtime_results.json",
     "registry_file": "experiment_registry.json"
   }
 }
+

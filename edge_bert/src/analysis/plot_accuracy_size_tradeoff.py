@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 import sys
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -15,9 +17,23 @@ METHOD_ORDER = [
     "FAR Frozen FP32",
     "FAR Frozen INT8",
     "Greedy Mixed",
-    "SA Mixed (v1)",
-    "Hybrid INT8+SA (Ours)",
+    "SA (v1)",
+    "Hybrid SA (ours)",
 ]
+
+DISPLAY_LABELS = {
+    "Greedy Mixed": "Greedy Optimization",
+}
+
+POINT_COLORS = {
+    "FP32 Baseline": "#607D8B",
+    "INT8 Uniform": "#2196F3",
+    "FAR Frozen FP32": "#4CAF50",
+    "FAR Frozen INT8": "#009688",
+    "Greedy Mixed": "#FF9800",
+    "SA (v1)": "#9C27B0",
+    "Hybrid SA (ours)": "#F44336",
+}
 
 
 def main() -> None:
@@ -35,24 +51,49 @@ def main() -> None:
         points.append((method, size_entry["theoretical_mb"], eval_entry["accuracy"]))
 
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(9, 5.5))
-    plt.scatter([item[1] for item in points], [item[2] for item in points], s=90)
+    fig, ax = plt.subplots(figsize=(9.4, 5.8))
+    ax.scatter(
+        [item[1] for item in points],
+        [item[2] for item in points],
+        s=100,
+        c=[POINT_COLORS.get(item[0], "#455A64") for item in points],
+        edgecolors="white",
+        linewidths=1.3,
+        zorder=3,
+    )
 
     for method, size_mb, accuracy in points:
-        plt.text(size_mb + 2, accuracy, method, fontsize=8.5)
+        display_label = DISPLAY_LABELS.get(method, method)
+        ax.text(
+            size_mb + 2,
+            accuracy,
+            display_label,
+            fontsize=8.6,
+            color="#1F2933",
+            fontweight="bold" if method in DISPLAY_LABELS or "ours" in method.lower() else "normal",
+            bbox={
+                "boxstyle": "round,pad=0.18",
+                "facecolor": "white",
+                "edgecolor": "none",
+                "alpha": 0.74,
+            },
+            zorder=4,
+        )
 
-    plt.xlabel("Theoretical Model Size (MB)")
-    plt.ylabel("Accuracy")
-    plt.title("Accuracy vs Model Size Trade-off")
-    plt.grid(True, alpha=0.3)
+    ax.set_xlabel("Theoretical Model Size (MB)", color="#1F2933")
+    ax.set_ylabel("Accuracy", color="#1F2933")
+    ax.set_title("Accuracy vs Model Size Trade-off", fontweight="bold", color="#1F2933")
+    ax.tick_params(axis="both", colors="#1F2933")
+    ax.grid(True, alpha=0.3, linestyle="--")
 
     output_path = FIGURES_DIR / "accuracy_vs_size_tradeoff.png"
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-    plt.close()
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
     print(f"Saved: {output_path}")
 
 
 if __name__ == "__main__":
     main()
+

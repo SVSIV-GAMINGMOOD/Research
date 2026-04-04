@@ -13,8 +13,8 @@ It also formalizes the precision policy:
 - research reference: `FP32`
 - optional FP8 experiment track:
   - `Greedy Mixed`
-  - `SA Mixed (v1)`
-  - `Hybrid INT8+SA (Ours)`
+  - `SA (v1)`
+  - `Hybrid SA (ours)`
 
 The `results/` folder is the canonical location for all experiment outputs.
 
@@ -96,8 +96,8 @@ This is useful for:
 FP8 is not required for the current pipeline, but if you add it later, limit it to:
 
 - `Greedy Mixed`
-- `SA Mixed (v1)`
-- `Hybrid INT8+SA (Ours)`
+- `SA (v1)`
+- `Hybrid SA (ours)`
 
 Reason:
 
@@ -421,8 +421,8 @@ It evaluates:
 - `FAR Frozen FP32`
 - `FAR Frozen INT8`
 - `Greedy Mixed`
-- `SA Mixed (v1)`
-- `Hybrid INT8+SA (Ours)`
+- `SA (v1)`
+- `Hybrid SA (ours)`
 
 Outputs:
 
@@ -477,7 +477,7 @@ This script consolidates:
 - size comparison results
 - created checkpoint artifacts
 - created config artifacts
-- supplementary GGUF benchmark placeholders
+- supplementary GGUF benchmark results and provenance
 - optional FP8-track placeholders
 
 Outputs:
@@ -499,9 +499,10 @@ Use it only after:
 
 Recommended scope:
 
+- `Primary Baseline (FP16 GGUF)`
 - `Greedy Mixed`
-- `SA Mixed (v1)`
-- `Hybrid INT8+SA (Ours)`
+- `SA (v1)`
+- `Hybrid SA (ours)`
 
 Do not use GGUF runtime benchmarks as a substitute for:
 
@@ -516,6 +517,89 @@ Use them for:
 - alternative backend latency
 - deployment discussion
 - supplementary systems evidence
+
+### Practical GGUF Command Flow
+
+If you want to run the supplementary `llama.cpp` track in this repo, use this order:
+
+1. Export the cleaned DistilBERT backbone in Hugging Face format:
+
+```powershell
+python src/export/export_baseline_to_huggingface.py
+```
+
+This writes the base model to `src/models/distilbert_hf_format/` and intentionally excludes the classifier-only head layers for GGUF export.
+
+2. Generate tensor-type maps for the mixed-precision presets:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File src/llama.cpp/generate_tensor_map.ps1 greedy
+powershell -ExecutionPolicy Bypass -File src/llama.cpp/generate_tensor_map.ps1 sa
+powershell -ExecutionPolicy Bypass -File src/llama.cpp/generate_tensor_map.ps1 hybrid
+```
+
+This creates:
+
+- `src/llama.cpp/tensor_types_greedy.txt`
+- `src/llama.cpp/tensor_types_sa.txt`
+- `src/llama.cpp/tensor_types_hybrid.txt`
+
+3. Convert the Hugging Face export to GGUF with the corresponding tensor map:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File src/llama.cpp/convert_distilbert_gguf.ps1 greedy
+powershell -ExecutionPolicy Bypass -File src/llama.cpp/convert_distilbert_gguf.ps1 sa
+powershell -ExecutionPolicy Bypass -File src/llama.cpp/convert_distilbert_gguf.ps1 hybrid
+```
+
+Default outputs:
+
+- `src/llama.cpp/distilbert-greedy.gguf`
+- `src/llama.cpp/distilbert-sa.gguf`
+- `src/llama.cpp/distilbert-hybrid.gguf`
+
+4. If you want the direct Python conversion command instead of the wrapper, use:
+
+```powershell
+python src/llama.cpp/convert_hf_to_gguf.py `
+  src/models/distilbert_hf_format `
+  --outfile src/llama.cpp/distilbert-hybrid.gguf `
+  --outtype f16 `
+  --tensor-types-file src/llama.cpp/tensor_types_hybrid.txt
+```
+
+Swap in `tensor_types_greedy.txt` or `tensor_types_sa.txt` and the corresponding output filename for the other presets.
+
+5. Validate conversion fidelity before reporting runtime results.
+
+At minimum, verify that:
+
+- the GGUF file was produced successfully
+- the expected tensor map was applied
+- the exported model still represents the intended mixed-precision policy
+
+6. Run runtime-only benchmarking and consolidate the results into `src/results/gguf_runtime_results.json`.
+
+Example:
+
+```powershell
+bash src/llama.cpp/benchmark_distilbert_embeddings.sh distilbert-f16.gguf distilbert-greedy.gguf distilbert-sa.gguf distilbert-hybrid.gguf
+python src/evaluation/build_experiment_registry.py
+```
+
+Current tracked GGUF benchmark status:
+
+- canonical CPU/CUDA batch: `src/llama.cpp/benchmarks/20260404_134936_*`
+- archived non-canonical batch: `src/llama.cpp/benchmarks/20260404_123103_*`
+- the archived batch is excluded from CUDA comparisons because `llama.cpp` reported no usable GPU support and ignored GPU offload there
+- `src/results/gguf_runtime_results.json` now records benchmark summaries for `Primary Baseline (FP16 GGUF)`, `Greedy Mixed`, `SA (v1)`, and `Hybrid SA (ours)`
+
+Use these results only for supplementary deployment/runtime discussion, not as replacements for:
+
+- SST-2 accuracy
+- F1
+- ROC-AUC
+- ONNX-based classifier evaluation
 
 ## 8. Recommended Command Order
 
@@ -593,3 +677,4 @@ That gives you:
 - a realistic deployment baseline
 - a defensible reference point
 - room for future FP8 experiments without destabilizing the current pipeline
+

@@ -62,7 +62,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "supplementary_runtime_backend": "llama.cpp_gguf",
         "primary_baseline_precision": "fp16",
         "reference_precision": "fp32",
-        "optional_fp8_models": ["Greedy Mixed", "SA Mixed (v1)", "Hybrid INT8+SA (Ours)"],
+        "optional_fp8_models": ["Greedy Mixed", "SA (v1)", "Hybrid SA (ours)"],
         "reference_results_file": "reference_model_results.json",
         "gguf_runtime_results_file": "gguf_runtime_results.json",
         "registry_file": "experiment_registry.json",
@@ -306,3 +306,4 @@ def save_sa_search_results(search_results: dict[str, Any]) -> None:
             "latency_ms": default_result.get("latency"),
         },
     )
+

@@ -13,6 +13,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from shared.experiment_settings import FIGURES_DIR, RESULTS_DIR, get_locked_layers, load_sa_best_config
 
+LATENCY_HARDWARE_LABEL = '13th Gen Intel(R) Core(TM) i9-13980HX'
 
 METHOD_ORDER = [
     "FP32 Baseline",
@@ -20,8 +21,8 @@ METHOD_ORDER = [
     "FAR Frozen FP32",
     "FAR Frozen INT8",
     "Greedy Mixed",
-    "SA Mixed (v1)",
-    "Hybrid INT8+SA (Ours)",
+    "SA (v1)",
+    "Hybrid SA (ours)",
 ]
 
 COLORS = {
@@ -30,8 +31,8 @@ COLORS = {
     "FAR Frozen FP32": "#4CAF50",
     "FAR Frozen INT8": "#009688",
     "Greedy Mixed": "#FF9800",
-    "SA Mixed (v1)": "#9C27B0",
-    "Hybrid INT8+SA (Ours)": "#F44336",
+    "SA (v1)": "#9C27B0",
+    "Hybrid SA (ours)": "#F44336",
 }
 
 SHORT_LABELS = {
@@ -40,10 +41,9 @@ SHORT_LABELS = {
     "FAR Frozen FP32": "FAR\nFP32",
     "FAR Frozen INT8": "FAR\nINT8",
     "Greedy Mixed": "Greedy",
-    "SA Mixed (v1)": "SA v1",
-    "Hybrid INT8+SA (Ours)": "Hybrid\n(Ours)",
+    "SA (v1)": "SA v1",
+    "Hybrid SA (ours)": "Hybrid SA\n(ours)",
 }
-
 
 def get(result_map, method, key, default=None):
     entry = result_map.get(method)
@@ -76,6 +76,37 @@ def build_sa_matrix():
     return np.array(matrix), [label for label, _ in op_patterns], locked_coords
 
 
+def rank_colors(values, higher_is_better=True):
+    values = np.asarray(values, dtype=float)
+    cmap = matplotlib.colormaps.get_cmap("RdYlGn")
+    if len(values) == 0:
+        return []
+    if np.allclose(values.max(), values.min()):
+        return [cmap(0.5) for _ in values]
+
+    normalized = (values - values.min()) / (values.max() - values.min())
+    if not higher_is_better:
+        normalized = 1.0 - normalized
+    return [cmap(0.12 + 0.76 * score) for score in normalized]
+
+
+def annotate_bars(ax, bars, fmt="{:.2f}", offset_ratio=0.012):
+    y_min, y_max = ax.get_ylim()
+    offset = (y_max - y_min) * offset_ratio
+    for bar in bars:
+        height = bar.get_height()
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            height + offset,
+            fmt.format(height),
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            fontweight="bold",
+            color="#263238",
+        )
+
+
 def main() -> None:
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     eval_results = json.loads((RESULTS_DIR / "all_model_results.json").read_text(encoding="utf-8"))
@@ -92,12 +123,13 @@ def main() -> None:
         method for method in METHOD_ORDER
         if get(eval_results, method, "accuracy") is not None and get(size_results, method, "theoretical_mb") is not None
     ]
+    scatter_colors = rank_colors([get(eval_results, method, "accuracy") for method in plotted_methods], higher_is_better=True)
     for method in plotted_methods:
         acc = get(eval_results, method, "accuracy")
         size = get(size_results, method, "theoretical_mb")
-        color = COLORS[method]
-        is_ours = "Ours" in method
-        ax.scatter(size, acc, s=220 if is_ours else 100, c=color, zorder=5 if is_ours else 3,
+        color = scatter_colors[plotted_methods.index(method)]
+        is_ours = "ours" in method.lower()
+        ax.scatter(size, acc, s=220 if is_ours else 100, c=[color], zorder=5 if is_ours else 3,
                    marker="*" if is_ours else "o", edgecolors="white", linewidths=1.5)
         ax.annotate(method, (size, acc), xytext=(5, 5), textcoords="offset points",
                     fontsize=8.5, color=color, fontweight="bold" if is_ours else "normal")
@@ -112,7 +144,7 @@ def main() -> None:
 
     matrix, op_labels, locked_coords = build_sa_matrix()
     fig, ax = plt.subplots(figsize=(11, 5.5))
-    cmap = plt.cm.get_cmap("RdYlGn", 3)
+    cmap = matplotlib.colormaps.get_cmap("RdYlGn").resampled(3)
     im = ax.imshow(matrix, cmap=cmap, vmin=3, vmax=9, aspect="auto")
     for row_index in range(matrix.shape[0]):
         for col_index in range(matrix.shape[1]):
@@ -138,19 +170,22 @@ def main() -> None:
     sizes_theory = [get(size_results, method, "theoretical_mb") for method in methods_for_bar]
     ratios = [fp32_size / size for size in sizes_theory]
     short_labels = [SHORT_LABELS[method] for method in methods_for_bar]
-    bar_colors = [COLORS[method] for method in methods_for_bar]
+    size_colors = rank_colors(sizes_theory, higher_is_better=False)
+    ratio_colors = rank_colors(ratios, higher_is_better=True)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.5))
-    ax1.bar(short_labels, sizes_theory, color=bar_colors, width=0.6, edgecolor="white", linewidth=1.2)
+    bars1 = ax1.bar(short_labels, sizes_theory, color=size_colors, width=0.6, edgecolor="white", linewidth=1.2)
     ax1.axhline(fp32_size, color="black", linestyle="--", linewidth=1.4)
     ax1.set_ylabel("Theoretical Effective Size (MB)")
     ax1.set_title("Model Size (All Methods)", fontweight="bold")
     ax1.grid(axis="y", alpha=0.3, linestyle="--")
-    ax2.bar(short_labels, ratios, color=bar_colors, width=0.6, edgecolor="white", linewidth=1.2)
+    annotate_bars(ax1, bars1, fmt="{:.1f} MB")
+    bars2 = ax2.bar(short_labels, ratios, color=ratio_colors, width=0.6, edgecolor="white", linewidth=1.2)
     ax2.axhline(1.0, color="black", linestyle="--", linewidth=1.4)
     ax2.set_ylabel("Compression Ratio (x)")
     ax2.set_title("Compression vs FP32", fontweight="bold")
     ax2.grid(axis="y", alpha=0.3, linestyle="--")
+    annotate_bars(ax2, bars2, fmt="{:.2f}x")
     plt.tight_layout()
     plt.savefig(FIGURES_DIR / "fig3_compression_bars.png", dpi=200, bbox_inches="tight")
     plt.close()
@@ -158,17 +193,18 @@ def main() -> None:
     methods_lat = [method for method in METHOD_ORDER if get(eval_results, method, "latency_avg") is not None]
     latencies = [get(eval_results, method, "latency_avg") for method in methods_lat]
     lat_labels = [SHORT_LABELS[method] for method in methods_lat]
-    lat_colors = [COLORS[method] for method in methods_lat]
+    lat_colors = rank_colors(latencies, higher_is_better=False)
     lat_p95 = [get(eval_results, method, "latency_p95", 0) for method in methods_lat]
 
     fig, ax = plt.subplots(figsize=(10, 5.5))
-    ax.bar(lat_labels, latencies, color=lat_colors, width=0.55, edgecolor="white", linewidth=1.2)
+    bars3 = ax.bar(lat_labels, latencies, color=lat_colors, width=0.55, edgecolor="white", linewidth=1.2)
     ax.errorbar(range(len(methods_lat)), latencies, yerr=[np.zeros(len(methods_lat)), [p - a for p, a in zip(lat_p95, latencies)]],
                 fmt="none", color="black", capsize=5, linewidth=1.5)
     ax.axhline(20.0, color="#F44336", linestyle="--", linewidth=1.5)
     ax.set_ylabel("Avg Inference Latency (ms)")
-    ax.set_title("CPU Inference Latency - All Models", fontweight="bold")
+    ax.set_title(f'CPU Inference Latency - All Models (Hardware Limited - {LATENCY_HARDWARE_LABEL})', fontweight="bold")
     ax.grid(axis="y", alpha=0.3, linestyle="--")
+    annotate_bars(ax, bars3, fmt="{:.2f} ms")
     plt.tight_layout()
     plt.savefig(FIGURES_DIR / "fig4_latency_bars.png", dpi=200, bbox_inches="tight")
     plt.close()
@@ -176,15 +212,16 @@ def main() -> None:
     methods_acc = [method for method in METHOD_ORDER if get(eval_results, method, "accuracy") is not None and method != "FP32 Baseline"]
     acc_drops = [(fp32_acc - get(eval_results, method, "accuracy")) * 100 for method in methods_acc]
     acc_labels = [SHORT_LABELS[method] for method in methods_acc]
-    acc_colors = [COLORS[method] for method in methods_acc]
+    acc_colors = rank_colors(acc_drops, higher_is_better=False)
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(acc_labels, acc_drops, color=acc_colors, width=0.55, edgecolor="white", linewidth=1.2)
+    bars4 = ax.bar(acc_labels, acc_drops, color=acc_colors, width=0.55, edgecolor="white", linewidth=1.2)
     ax.axhline(1.0, color="#FF9800", linestyle="--", linewidth=1.5)
     ax.axhline(2.0, color="#F44336", linestyle="--", linewidth=1.5)
     ax.axhline(0.0, color="black", linewidth=1.0)
     ax.set_ylabel("Accuracy Drop vs FP32 (%)")
     ax.set_title("Accuracy Degradation Relative to FP32 Baseline", fontweight="bold")
     ax.grid(axis="y", alpha=0.3, linestyle="--")
+    annotate_bars(ax, bars4, fmt="{:.2f}%")
     plt.tight_layout()
     plt.savefig(FIGURES_DIR / "fig5_accuracy_drop.png", dpi=200, bbox_inches="tight")
     plt.close()
@@ -194,3 +231,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

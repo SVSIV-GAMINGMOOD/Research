@@ -9,7 +9,7 @@ from shared.model_workflows import MODELS_DIR, RESULTS_DIR, evaluate_onnx_model,
 
 
 MODEL_PATH = MODELS_DIR / "hybrid_quant_model.onnx"
-COMPARISON_METHODS = ["FP32 Baseline", "INT8 Uniform", "Greedy Mixed", "SA Mixed (v1)"]
+COMPARISON_METHODS = ["FP32 Baseline", "INT8 Uniform", "Greedy Mixed", "SA (v1)"]
 
 
 def main() -> None:
@@ -103,3 +103,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

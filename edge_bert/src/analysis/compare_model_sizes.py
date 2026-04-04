@@ -27,8 +27,8 @@ ONNX_FILES = {
     "FAR Frozen FP32": "frozen_fp32.onnx",
     "FAR Frozen INT8": "frozen_int8.onnx",
     "Greedy Mixed": "greedy_quant_model.onnx",
-    "SA Mixed (v1)": "mixed_precision_real_quant.onnx",
-    "Hybrid INT8+SA (Ours)": "hybrid_quant_model.onnx",
+    "SA (v1)": "mixed_precision_real_quant.onnx",
+    "Hybrid SA (ours)": "hybrid_quant_model.onnx",
 }
 
 SA_CONFIG = load_sa_best_config()
@@ -73,8 +73,8 @@ def main() -> None:
     "FAR Frozen FP32": dict(default_bits=32, embed_bits=32),
     "FAR Frozen INT8": dict(default_bits=8, embed_bits=8),
     "Greedy Mixed": dict(linear_config=GREEDY_CONFIG),
-    "SA Mixed (v1)": dict(linear_config=SA_CONFIG),
-    "Hybrid INT8+SA (Ours)": dict(linear_config=SA_CONFIG, embed_bits=DEFAULT_EMBEDDING_BITS),
+    "SA (v1)": dict(linear_config=SA_CONFIG),
+    "Hybrid SA (ours)": dict(linear_config=SA_CONFIG, embed_bits=DEFAULT_EMBEDDING_BITS),
     }
 
     model = DistilBertForSequenceClassification.from_pretrained(
@@ -130,3 +130,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
