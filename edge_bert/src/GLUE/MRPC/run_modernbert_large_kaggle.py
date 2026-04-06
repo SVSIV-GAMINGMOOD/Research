@@ -34,8 +34,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent if "__file__" in globals() else Pat
 
 MODEL_ID = "answerdotai/ModernBERT-large"
 DATASET_NAME = "glue"
-DATASET_CONFIG = "mrpc"
-TEXT_COLUMNS = ("sentence1", "sentence2")
+DATASET_CONFIG = "sst2"
+TEXT_COLUMNS = ("sentence",)
 TRAIN_SPLIT = "train"
 VALIDATION_SPLIT = "validation"
 NUM_LABELS = 2
@@ -249,12 +249,17 @@ def load_mrpc_dataset(
         dataset = dataset.select(range(min(max_samples, len(dataset))))
 
     def tokenize(batch: dict[str, Any]) -> dict[str, Any]:
+        tokenize_kwargs = {
+            "truncation": True,
+            "padding": "max_length",
+            "max_length": MAX_LENGTH,
+        }
+        if len(TEXT_COLUMNS) == 1:
+            return tokenizer(batch[TEXT_COLUMNS[0]], **tokenize_kwargs)
         return tokenizer(
             batch[TEXT_COLUMNS[0]],
             batch[TEXT_COLUMNS[1]],
-            truncation=True,
-            padding="max_length",
-            max_length=MAX_LENGTH,
+            **tokenize_kwargs,
         )
 
     dataset = dataset.map(tokenize, batched=True)
