@@ -48,6 +48,8 @@ INT8_BITS = 8
 HYBRID_EMBED_BITS = 8
 SENSITIVITY_SIM_BITS = 4
 LOCK_THRESHOLD = 0.01
+BAND_LOCK_8_THRESHOLD = 0.02
+BAND_FORCE_4_THRESHOLD = 0.005
 
 DEFAULT_SEED = 42
 DEFAULT_BATCH_SIZE = 8
@@ -604,6 +606,29 @@ def derive_locked_layers(sensitivity_by_layer: dict[str, float], threshold: floa
     return sorted(layer for layer, drop in sensitivity_by_layer.items() if drop >= threshold)
 
 
+def derive_quantization_bands(
+    sensitivity_by_layer: dict[str, float],
+    *,
+    lock_8_threshold: float = BAND_LOCK_8_THRESHOLD,
+    force_4_threshold: float = BAND_FORCE_4_THRESHOLD,
+) -> tuple[list[str], list[str], list[str]]:
+    if force_4_threshold > lock_8_threshold:
+        raise ValueError("force_4_threshold must be less than or equal to lock_8_threshold.")
+
+    locked_8_layers = sorted(
+        layer for layer, drop in sensitivity_by_layer.items() if drop >= lock_8_threshold
+    )
+    fixed_4_layers = sorted(
+        layer for layer, drop in sensitivity_by_layer.items() if drop <= force_4_threshold
+    )
+    searchable_layers = sorted(
+        layer
+        for layer, drop in sensitivity_by_layer.items()
+        if force_4_threshold < drop < lock_8_threshold
+    )
+    return locked_8_layers, fixed_4_layers, searchable_layers
+
+
 def run_sensitivity_analysis(
     layout: OutputLayout,
     args: argparse.Namespace,
@@ -631,6 +656,7 @@ def run_sensitivity_analysis(
     sensitivities.sort(key=lambda item: item[1], reverse=True)
     sensitivity_by_layer = {layer: round(drop, 4) for layer, drop in sensitivities}
     locked_layers = derive_locked_layers(sensitivity_by_layer, LOCK_THRESHOLD)
+    locked_8_layers, fixed_4_layers, searchable_layers = derive_quantization_bands(sensitivity_by_layer)
     payload = {
         "model_id": MODEL_ID,
         "dataset_name": DATASET_NAME,
@@ -639,8 +665,15 @@ def run_sensitivity_analysis(
         "bit_simulation": SENSITIVITY_SIM_BITS,
         "baseline_accuracy": round(baseline_accuracy, 4),
         "lock_threshold": LOCK_THRESHOLD,
+        "band_policy": {
+            "lock_8_threshold": BAND_LOCK_8_THRESHOLD,
+            "force_4_threshold": BAND_FORCE_4_THRESHOLD,
+        },
         "max_eval_samples": args.max_eval_samples,
         "locked_layers": locked_layers,
+        "locked_8_layers": locked_8_layers,
+        "fixed_4_layers": fixed_4_layers,
+        "searchable_layers": searchable_layers,
         "sensitivity_by_layer": sensitivity_by_layer,
         "sorted_layers": [
             {"layer": layer, "accuracy_drop": round(drop, 4)}
@@ -656,8 +689,13 @@ def generate_greedy_config(
     sensitivity_results: dict[str, Any],
 ) -> dict[str, int]:
     sensitivity = sensitivity_results["sensitivity_by_layer"]
-    locked_layers = set(sensitivity_results["locked_layers"])
-    search_layers = {layer: drop for layer, drop in sensitivity.items() if layer not in locked_layers}
+    locked_layers = set(sensitivity_results.get("locked_8_layers", sensitivity_results["locked_layers"]))
+    fixed_4_layers = set(sensitivity_results.get("fixed_4_layers", []))
+    search_layers = {
+        layer: drop
+        for layer, drop in sensitivity.items()
+        if layer not in locked_layers and layer not in fixed_4_layers
+    }
     sorted_layers = sorted(search_layers.items(), key=lambda item: item[1], reverse=True)
 
     if GREEDY_ALLOCATION_STRATEGY != "tertiles":
@@ -676,6 +714,8 @@ def generate_greedy_config(
         config[layer] = 4
     for layer in locked_layers:
         config[layer] = 8
+    for layer in fixed_4_layers:
+        config[layer] = 4
 
     save_json(results_path(layout, "greedy_config.json"), config)
     return config
@@ -683,6 +723,22 @@ def generate_greedy_config(
 
 def get_linear_module_names(model: Any, locked_layers: set[str]) -> list[str]:
     return [name for name, module in model.named_modules() if isinstance(module, nn.Linear) and name not in locked_layers]
+
+
+def resolve_banded_linear_config(
+    sensitivity_results: dict[str, Any],
+    candidate_config: dict[str, int] | None = None,
+) -> dict[str, int]:
+    resolved = {}
+    for layer in sensitivity_results.get("fixed_4_layers", []):
+        resolved[layer] = 4
+    for layer in sensitivity_results.get("locked_8_layers", sensitivity_results.get("locked_layers", [])):
+        resolved[layer] = 8
+    if candidate_config:
+        for layer, bits in candidate_config.items():
+            if layer not in resolved:
+                resolved[layer] = bits
+    return resolved
 
 
 def compute_theoretical_size_mb(
@@ -819,8 +875,15 @@ def run_sa_search(
     fp32_checkpoint = checkpoint_path(layout, "fp32_reference_best.pt")
     base_model = load_model_from_checkpoint(fp32_checkpoint, device=device, use_half=False)
     dataset = build_search_dataset(tokenizer, args.max_eval_samples)
-    locked_layers = set(sensitivity_results["locked_layers"])
-    searchable_layers = get_linear_module_names(base_model, locked_layers)
+    locked_layers = set(sensitivity_results.get("locked_8_layers", sensitivity_results["locked_layers"]))
+    fixed_4_layers = set(sensitivity_results.get("fixed_4_layers", []))
+    searchable_layers = list(sensitivity_results.get("searchable_layers", []))
+    if not searchable_layers:
+        searchable_layers = [
+            name
+            for name, module in base_model.named_modules()
+            if isinstance(module, nn.Linear) and name not in locked_layers and name not in fixed_4_layers
+        ]
     baseline_accuracy = evaluate_model_accuracy(base_model, dataset, device=device, batch_size=args.batch_size)
     baseline_latency_ms = measure_reference_latency_ms(base_model, dataset, device=device, use_amp_inference=False)
     baseline_size_mb = compute_theoretical_size_mb(base_model)["theoretical_mb"]
@@ -832,20 +895,25 @@ def run_sa_search(
         if signature in cache:
             return cache[signature]
 
+        resolved_config = resolve_banded_linear_config(sensitivity_results, candidate_bits)
         model_copy = copy.deepcopy(base_model)
         for name, module in model_copy.named_modules():
             if isinstance(module, nn.Linear):
-                bits = 8 if name in locked_layers else candidate_bits.get(name, 8)
+                bits = resolved_config.get(name, 8)
                 module.weight.data = fake_quantize_tensor(module.weight.data, bits)
         accuracy = evaluate_model_accuracy(model_copy, dataset, device=device, batch_size=args.batch_size)
         size_payload = compute_theoretical_size_mb(
             model_copy,
-            linear_config={name: 8 if name in locked_layers else candidate_bits.get(name, 8) for name, module in base_model.named_modules() if isinstance(module, nn.Linear)},
+            linear_config={
+                name: resolved_config.get(name, 8)
+                for name, module in base_model.named_modules()
+                if isinstance(module, nn.Linear)
+            },
         )
         latency = estimate_candidate_latency_ms(
             base_model,
-            candidate_bits,
-            locked_layers=locked_layers,
+            resolved_config,
+            locked_layers=set(),
             baseline_latency_ms=baseline_latency_ms,
         )
         result = (accuracy, size_payload["theoretical_mb"], latency)
@@ -889,6 +957,7 @@ def run_sa_search(
             "feasible": feasible,
             "guide_energy": guide_energy,
             "candidate": copy.deepcopy(candidate),
+            "resolved_config": resolve_banded_linear_config(sensitivity_results, candidate),
         }
 
     def run_single_search(seed: int, threshold_spec: dict[str, Any], bounds: dict[str, float]) -> dict[str, Any]:
@@ -963,6 +1032,36 @@ def run_sa_search(
         for drop in SEARCH_THRESHOLD_DROPS
     ]
     bounds = get_bounds()
+
+    if not searchable_layers:
+        default_record = evaluate_candidate_record({}, threshold_specs[0], bounds, seed=0)
+        payload = {
+            "model_id": MODEL_ID,
+            "dataset_name": DATASET_NAME,
+            "dataset_config": DATASET_CONFIG,
+            "reference_checkpoint": fp32_checkpoint.name,
+            "baseline_accuracy": round(baseline_accuracy, 4),
+            "baseline_latency_ms": round(baseline_latency_ms, 4),
+            "baseline_size_mb": round(baseline_size_mb, 4),
+            "locked_layers": sorted(locked_layers),
+            "fixed_4_layers": sorted(fixed_4_layers),
+            "searchable_layer_count": 0,
+            "default_result": {
+                "threshold_label": default_record["threshold_label"],
+                "threshold_accuracy": round(default_record["threshold_accuracy"], 4),
+                "threshold_drop_percent": default_record["threshold_drop_percent"],
+                "seed": default_record["seed"],
+                "accuracy": round(default_record["accuracy"], 4),
+                "size_mb": round(default_record["size_mb"], 4),
+                "latency_ms": round(default_record["latency_ms"], 4),
+                "guide_energy": round(default_record["guide_energy"], 6),
+                "search_candidate": {},
+                "bit_config": default_record["resolved_config"],
+            },
+        }
+        save_json(results_path(layout, "sa_best_config.json"), payload)
+        return payload
+
     threshold_results = []
     for threshold_spec in threshold_specs:
         runs = [run_single_search(seed, threshold_spec, bounds) for seed in range(SEARCH_NUM_RUNS)]
@@ -1003,6 +1102,7 @@ def run_sa_search(
         "baseline_latency_ms": round(baseline_latency_ms, 4),
         "baseline_size_mb": round(baseline_size_mb, 4),
         "locked_layers": sorted(locked_layers),
+        "fixed_4_layers": sorted(fixed_4_layers),
         "searchable_layer_count": len(searchable_layers),
         "default_result": {
             "threshold_label": default_result["threshold_label"],
@@ -1013,7 +1113,8 @@ def run_sa_search(
             "size_mb": round(default_result["size_mb"], 4),
             "latency_ms": round(default_result["latency_ms"], 4),
             "guide_energy": round(default_result["guide_energy"], 6),
-            "bit_config": default_result["candidate"],
+            "search_candidate": default_result["candidate"],
+            "bit_config": default_result["resolved_config"],
         },
     }
     save_json(results_path(layout, "sa_best_config.json"), payload)
@@ -1023,6 +1124,9 @@ def run_sa_search(
             "baseline_accuracy": payload["baseline_accuracy"],
             "baseline_latency_ms": payload["baseline_latency_ms"],
             "baseline_size_mb": payload["baseline_size_mb"],
+            "locked_layers": payload["locked_layers"],
+            "fixed_4_layers": payload["fixed_4_layers"],
+            "searchable_layer_count": payload["searchable_layer_count"],
             "thresholds": threshold_results,
             "default_result": payload["default_result"],
         }
@@ -1256,10 +1360,10 @@ def build_hybrid_linear_config(layout: OutputLayout) -> dict[str, int]:
     sensitivity_payload = load_json(results_path(layout, "sensitivity_results.json"), default={}) or {}
     if not sa_payload:
         raise FileNotFoundError("Missing sa_best_config.json. Run the search phase first.")
-    config = dict(sa_payload["default_result"]["bit_config"])
-    for layer in sensitivity_payload.get("locked_layers", []):
-        config[layer] = 8
-    return config
+    default_result = sa_payload["default_result"]
+    if "bit_config" in default_result:
+        return dict(default_result["bit_config"])
+    return resolve_banded_linear_config(sensitivity_payload, default_result.get("search_candidate", {}))
 
 
 def export_quantized_variant(
@@ -1356,7 +1460,8 @@ def run_export_phase(layout: OutputLayout, args: argparse.Namespace) -> dict[str
         "dataset_name": DATASET_NAME,
         "dataset_config": DATASET_CONFIG,
         "hybrid_sa_config": sa_linear_config,
-        "locked_layers": sensitivity_payload.get("locked_layers", []),
+        "locked_layers": sensitivity_payload.get("locked_8_layers", sensitivity_payload.get("locked_layers", [])),
+        "fixed_4_layers": sensitivity_payload.get("fixed_4_layers", []),
         "embedding_bits": HYBRID_EMBED_BITS,
         "theoretical_mb": round(hybrid_size["theoretical_mb"], 4),
         "effective_bits": round(hybrid_size["effective_bits"], 4),
@@ -1496,11 +1601,15 @@ def generate_size_comparison(layout: OutputLayout) -> dict[str, Any]:
     reference_model = load_model_from_checkpoint(reference_checkpoint, device=torch.device("cpu"), use_half=False)
 
     greedy_config = load_json(results_path(layout, "greedy_config.json"), default={}) or {}
-    sa_payload = load_json(results_path(layout, "sa_best_config.json"), default={}) or {}
     sensitivity_payload = load_json(results_path(layout, "sensitivity_results.json"), default={}) or {}
-    hybrid_config = dict(sa_payload.get("default_result", {}).get("bit_config", {}))
-    for layer in sensitivity_payload.get("locked_layers", []):
-        hybrid_config[layer] = 8
+    sa_payload = load_json(results_path(layout, "sa_best_config.json"), default={}) or {}
+    if sa_payload:
+        default_result = sa_payload.get("default_result", {})
+        hybrid_config = dict(default_result.get("bit_config", {}))
+        if not hybrid_config:
+            hybrid_config = resolve_banded_linear_config(sensitivity_payload, default_result.get("search_candidate", {}))
+    else:
+        hybrid_config = {}
 
     theoretical_configs = {
         "FP32 Research Reference": {"default_bits": DEFAULT_BITS, "embed_bits": DEFAULT_BITS},
